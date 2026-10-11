@@ -70,13 +70,17 @@ source .venv/bin/activate
 
 ### 2. Code Quality & Formatting
 
-We use `ruff` for both linting and formatting. Run these before every commit:
+We use `ruff` for both linting and formatting. Ruff is not included in the development dependencies, so use `uvx` to run it in an isolated environment:
 
 ```bash
-uv run ruff format .
-uv run ruff check --fix .
+uvx ruff check .
+uvx ruff format --check .
 
 ```
+
+Full-repository checks can report pre-existing lint and formatting violations.
+Focus fixes on the Python files you changed, and report unrelated failures
+separately rather than reformatting the whole repository in your PR.
 
 ### 3. Security Scanning
 
@@ -121,25 +125,19 @@ detected, rotate/revoke it at its source first, then remove it from the code.
 Validate core logic for metrics and data parsing:
 
 ```bash
-uv run pytest tests/unit
+uv run pytest src/ -k "not integration"
 
 ```
 
-### Integration & Benchmark Validation
+### Full Suite / Integration Tests
 
-Verify that agent trajectories and environment simulations run correctly:
+Run the full suite (integration tests may require external services):
 
 ```bash
-chmod +x ./scripts/run_tests.sh
-./scripts/run_tests.sh
-
+uv run pytest src/
 ```
 
-This script validates:
-
-* **Linting**: Ruff validation.
-* **Agentic Logic**: Verification of ReAct and Plan-Execute orchestration.
-* **Asset Consistency**: Ensuring industrial asset IDs (e.g., FailureSensorIQ) match registry definitions.
+See [INSTRUCTIONS.md](INSTRUCTIONS.md#running-tests) for integration prerequisites and narrower test commands. The unit test command above does not require CouchDB or WatsonX.
 
 ---
 

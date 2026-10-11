@@ -10,7 +10,7 @@
 - Refs: #
 
 ## Testing & Validation
-- [ ] **Unit Tests**: `uv run pytest tests/unit` passed.
+- [ ] **Unit Tests**: `uv run pytest src/ -k "not integration"` passed.
 - [ ] **Scenario Validation**: Verified that the agent can execute the trajectory.
 - [ ] **Data Integrity**: Checked that no PII or sensitive industrial data is included.
 
