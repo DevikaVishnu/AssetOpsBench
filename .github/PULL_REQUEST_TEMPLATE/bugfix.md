@@ -8,7 +8,7 @@
 - Fixes: #
 
 ## Verification Steps
-1. Run the following command: `uv run pytest tests/integration`
+1. Run the following command: `uv run pytest src/ -k "not integration"`
 2. Describe any manual verification performed:
 
 ## Checklist
