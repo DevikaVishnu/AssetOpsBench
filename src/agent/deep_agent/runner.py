@@ -30,6 +30,20 @@ from llm.routers import resolve_model, resolve_router_creds
 from .._prompts import AGENT_SYSTEM_PROMPT
 from ..models import AgentResult, ToolCall, Trajectory, TurnRecord
 from ..runner import AgentRunner
+from ._budget_guard import BudgetGuard, guard_enabled
+from ._subagent_capture import (
+    SubagentCaptureHandler,
+    capture_enabled,
+    write_instrumented,
+)
+from ._specialists import (
+    build_specialists,
+    load_tools_by_server,
+    specialists_enabled,
+    tool_availability,
+    with_forwarded_env,
+    with_readonly_wo,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -189,15 +203,58 @@ class DeepAgentRunner(AgentRunner):
             from deepagents import create_deep_agent
             from langchain_mcp_adapters.client import MultiServerMCPClient
 
-            connections = _build_mcp_connections(self._server_paths)
-            client = MultiServerMCPClient(connections) if connections else None
-            tools = await client.get_tools() if client is not None else []
+            # AGENTTRACE_BUDGET_GUARD (off by default): one call/cost guard on the
+            # shared model, configured before any connection or model call.
+            guard = BudgetGuard.from_env() if guard_enabled() else None
+            if guard is not None:
+                guard.attach(self._chat_model)
 
-            agent = create_deep_agent(
-                model=self._chat_model,
-                tools=tools,
-                system_prompt=AGENT_SYSTEM_PROMPT,
+            # AGENTTRACE_SPECIALISTS (off by default): specialist sub-agents
+            # and a read-only WO connection; see _specialists.
+            specialists_on = specialists_enabled()
+            connections = _build_mcp_connections(self._server_paths)
+            if specialists_on:
+                connections = with_readonly_wo(with_forwarded_env(connections))
+            client = MultiServerMCPClient(connections) if connections else None
+            extra: dict = {}
+            if specialists_on and client is not None:
+                tools_by_server = await load_tools_by_server(client, list(connections))
+                tools = [t for name in connections for t in tools_by_server[name]]
+                extra["subagents"] = build_specialists(tools_by_server)
+            else:
+                tools = await client.get_tools() if client is not None else []
+
+            capture = (
+                SubagentCaptureHandler(offered_tools=specialists_on)
+                if capture_enabled()
+                else None
             )
+            if capture is not None and "subagents" in extra:
+                capture.tool_availability = tool_availability(
+                    tools, extra["subagents"], connections
+                )
+            if capture is not None:
+                capture.budget_guard = guard
+            if capture is None:
+                agent = create_deep_agent(
+                    model=self._chat_model,
+                    tools=tools,
+                    system_prompt=AGENT_SYSTEM_PROMPT,
+                    **extra,
+                )
+            else:
+                # Same default StateBackend, observed per tool call (see _file_observer).
+                from deepagents.backends import StateBackend
+
+                from ._file_observer import observing_backend_factory
+
+                agent = create_deep_agent(
+                    model=self._chat_model,
+                    tools=tools,
+                    system_prompt=AGENT_SYSTEM_PROMPT,
+                    backend=observing_backend_factory(StateBackend(), capture),
+                    **extra,
+                )
 
             _log.info(
                 "DeepAgentRunner: starting query (model=%s, tools=%d)",
@@ -205,10 +262,21 @@ class DeepAgentRunner(AgentRunner):
                 len(tools),
             )
 
-            state = await agent.ainvoke(
-                {"messages": [{"role": "user", "content": question}]},
-                config={"recursion_limit": self._recursion_limit},
-            )
+            config: dict = {"recursion_limit": self._recursion_limit}
+            if capture is not None:
+                config["callbacks"] = [capture]
+
+            try:
+                state = await agent.ainvoke(
+                    {"messages": [{"role": "user", "content": question}]},
+                    config=config,
+                )
+            except Exception as exc:
+                if capture is not None:
+                    write_instrumented(
+                        capture, model=self._model_id, question=question, error=exc
+                    )
+                raise
 
             messages = state.get("messages", []) if isinstance(state, dict) else []
             trajectory = _build_trajectory(messages)
@@ -257,4 +325,11 @@ class DeepAgentRunner(AgentRunner):
                 answer=answer,
                 trajectory=trajectory,
             )
+            if capture is not None:
+                write_instrumented(
+                    capture,
+                    model=self._model_id,
+                    question=question,
+                    trajectory=trajectory,
+                )
             return AgentResult(question=question, answer=answer, trajectory=trajectory)
