@@ -1,0 +1,17 @@
+{
+  "fixture": "aob-620-compare.trace.json",
+  "fixture_class": "real",
+  "role": "abstention control",
+  "entries": [
+    {"rule": "O2", "inputs": {"event": "ev:620:llm:57", "item": "evi:620:S"}, "expected": {"whole_item": "DELIVERED"}, "basis": "0.3"},
+    {"rule": "O2", "inputs": {"event": "ev:620:llm:57", "item": "evi:620:H"}, "expected": {"whole_item": "DELIVERED"}, "basis": "0.3"},
+    {"rule": "claim_delivery", "inputs": {"event": "ev:620:llm:57", "claim": "clm:620:A:cwf-consecutive-swing"}, "expected": {"value": "UNKNOWN"}, "basis": "0.3"},
+    {"rule": "O3", "inputs": {"state": 0}, "expected": {
+      "holder": "agent:root", "event": "ev:620:llm:57",
+      "direct": {"value": "UNKNOWN", "links": []},
+      "comparison": "UNKNOWN",
+      "delivered_direct": {"value": "UNKNOWN", "counted_value": "UNKNOWN", "counted": [], "excluded": [], "pending": []},
+      "testimonial": {"value": "UNKNOWN", "contributions": []}
+    }, "basis": "0.3 (direct), PD (comparison, delivered_direct), 0.3+PD (testimonial)", "note": "Delivered evidence neither supports nor contradicts the claim; the comparison abstains. It is not a contradiction."}
+  ]
+}

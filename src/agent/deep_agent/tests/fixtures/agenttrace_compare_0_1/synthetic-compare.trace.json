@@ -1,0 +1,873 @@
+{
+ "profile": "agenttrace.compare/0.1",
+ "semantic": {
+  "run": {
+   "id": "synthetic-compare-0.1",
+   "raw_ref": {
+    "kind": "synthetic",
+    "note": "SYNTHETIC — authored test content; never evidence of natural agent behavior."
+   },
+   "outputs": "UNKNOWN"
+  },
+  "entities": [
+   {
+    "id": "agent:a",
+    "kind": "agent",
+    "role": "worker",
+    "model": "synthetic",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "id": "agent:b",
+    "kind": "agent",
+    "role": "relay",
+    "model": "synthetic",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "id": "agent:c",
+    "kind": "agent",
+    "role": "dissenter",
+    "model": "synthetic",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "id": "tool:t",
+    "kind": "tool",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "id": "framework:fw",
+    "kind": "framework",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   }
+  ],
+  "events": [
+   {
+    "id": "ev:syn:t1",
+    "order": 1,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "tool:t"
+   },
+   {
+    "id": "ev:syn:t2",
+    "order": 2,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "tool:t"
+   },
+   {
+    "id": "ev:syn:fw1",
+    "order": 3,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "framework:fw"
+   },
+   {
+    "id": "ev:syn:t3",
+    "order": 4,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "tool:t"
+   },
+   {
+    "id": "ev:syn:a1",
+    "order": 10,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "agent:a"
+   },
+   {
+    "id": "ev:syn:a2",
+    "order": 11,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "agent:a"
+   },
+   {
+    "id": "ev:syn:a3",
+    "order": 12,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "agent:a"
+   },
+   {
+    "id": "ev:syn:a4",
+    "order": 13,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "agent:a"
+   },
+   {
+    "id": "ev:syn:b1",
+    "order": 20,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "agent:b"
+   },
+   {
+    "id": "ev:syn:c1",
+    "order": 30,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": "agent:c"
+   },
+   {
+    "id": "ev:syn:x1",
+    "order": 40,
+    "raw_ref": {
+     "kind": "synthetic"
+    },
+    "origin": {
+     "$unresolved": "amb:syn:origin",
+     "candidates": [
+      "agent:a",
+      "framework:fw"
+     ]
+    }
+   },
+   {
+    "id": "ev:syn:n1",
+    "order": 41,
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   }
+  ],
+  "evidence": [
+   {
+    "id": "evi:syn:X1",
+    "source": "tool",
+    "produced_by": "ev:syn:t1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "text_key": "evi:syn:X1"
+    }
+   },
+   {
+    "id": "evi:syn:X2",
+    "source": "tool",
+    "produced_by": "ev:syn:t2",
+    "raw_ref": {
+     "kind": "synthetic",
+     "text_key": "evi:syn:X2"
+    }
+   },
+   {
+    "id": "evi:syn:X3",
+    "source": "framework",
+    "produced_by": "ev:syn:fw1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "text_key": "evi:syn:X3"
+    }
+   },
+   {
+    "id": "evi:syn:X4",
+    "source": "tool",
+    "produced_by": "ev:syn:t3",
+    "raw_ref": {
+     "kind": "synthetic",
+     "text_key": "evi:syn:X4"
+    }
+   },
+   {
+    "id": "evi:syn:EA1",
+    "source": "agent",
+    "produced_by": "ev:syn:a1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "text_key": "evi:syn:EA1"
+    }
+   },
+   {
+    "id": "evi:syn:EA2",
+    "source": "agent",
+    "produced_by": "ev:syn:a2",
+    "raw_ref": {
+     "kind": "synthetic",
+     "text_key": "evi:syn:EA2"
+    }
+   },
+   {
+    "id": "evi:syn:EA3",
+    "source": "agent",
+    "produced_by": "ev:syn:a3",
+    "raw_ref": {
+     "kind": "synthetic",
+     "text_key": "evi:syn:EA3"
+    }
+   },
+   {
+    "id": "evi:syn:EB1",
+    "source": "agent",
+    "produced_by": "ev:syn:b1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "text_key": "evi:syn:EB1"
+    }
+   },
+   {
+    "id": "evi:syn:EC1",
+    "source": "agent",
+    "produced_by": "ev:syn:c1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "text_key": "evi:syn:EC1"
+    }
+   }
+  ],
+  "claims": [
+   {
+    "id": "clm:syn:CA1",
+    "evidence": "evi:syn:EA1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      0,
+      19
+     ],
+     "text": "There are 42 orders"
+    },
+    "proposition": "prop:syn:P1"
+   },
+   {
+    "id": "clm:syn:CA1b",
+    "evidence": "evi:syn:EA1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      21,
+      39
+     ],
+     "text": "Probably 42 orders"
+    },
+    "proposition": "prop:syn:P1"
+   },
+   {
+    "id": "clm:syn:CA2",
+    "evidence": "evi:syn:EA1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      41,
+      55
+     ],
+     "text": "Job j1 is done"
+    },
+    "proposition": "prop:syn:P2"
+   },
+   {
+    "id": "clm:syn:CA3",
+    "evidence": "evi:syn:EA1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      57,
+      71
+     ],
+     "text": "Job j2 is done"
+    },
+    "proposition": "prop:syn:P3"
+   },
+   {
+    "id": "clm:syn:CA4",
+    "evidence": "evi:syn:EA1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      73,
+      98
+     ],
+     "text": "I think the cache is warm"
+    },
+    "proposition": "prop:syn:P4"
+   },
+   {
+    "id": "clm:syn:CA7",
+    "evidence": "evi:syn:EA1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      100,
+      115
+     ],
+     "text": "Job j1 finished"
+    },
+    "proposition": "prop:syn:P7"
+   },
+   {
+    "id": "clm:syn:CA8",
+    "evidence": "evi:syn:EA1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      117,
+      126
+     ],
+     "text": "Cache hit"
+    },
+    "proposition": "prop:syn:P8"
+   },
+   {
+    "id": "clm:syn:CA9",
+    "evidence": "evi:syn:EA2",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      0,
+      16
+     ],
+     "text": "Job j3 is failed"
+    },
+    "proposition": "prop:syn:P9"
+   },
+   {
+    "id": "clm:syn:CA5",
+    "evidence": "evi:syn:EA3",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      0,
+      18
+     ],
+     "text": "Peak was 193 on s1"
+    },
+    "proposition": "prop:syn:P5"
+   },
+   {
+    "id": "clm:syn:CA6",
+    "evidence": "evi:syn:EA3",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      20,
+      53
+     ],
+     "text": "The full result contains an error"
+    },
+    "proposition": "prop:syn:P6"
+   },
+   {
+    "id": "clm:syn:CB1",
+    "evidence": "evi:syn:EB1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      14,
+      33
+     ],
+     "text": "There are 42 orders"
+    },
+    "proposition": "prop:syn:P1"
+   },
+   {
+    "id": "clm:syn:CC1",
+    "evidence": "evi:syn:EC1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "span": [
+      0,
+      23
+     ],
+     "text": "There are not 42 orders"
+    },
+    "proposition": "prop:syn:P1n"
+   }
+  ],
+  "propositions": [
+   {
+    "id": "prop:syn:P1",
+    "form": "row_count(table=\"orders\", value=42)"
+   },
+   {
+    "id": "prop:syn:P1n",
+    "form": "not(row_count(table=\"orders\", value=42))"
+   },
+   {
+    "id": "prop:syn:P2",
+    "form": "status(job=\"j1\", value=\"done\")"
+   },
+   {
+    "id": "prop:syn:P3",
+    "form": "status(job=\"j2\", value=\"done\")"
+   },
+   {
+    "id": "prop:syn:P4",
+    "form": "cache(value=\"warm\")"
+   },
+   {
+    "id": "prop:syn:P5",
+    "form": "peak(sensor=\"s1\", value=193)"
+   },
+   {
+    "id": "prop:syn:P6",
+    "form": "contains_error(item=\"evi:syn:X2\")"
+   },
+   {
+    "id": "prop:syn:P7",
+    "form": "finished(job=\"j1\")"
+   },
+   {
+    "id": "prop:syn:P8",
+    "form": "cache_hit()"
+   },
+   {
+    "id": "prop:syn:P9",
+    "form": "status(job=\"j3\", value=\"failed\")"
+   }
+  ],
+  "states": [
+   {
+    "proposition": "prop:syn:P1",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CA1"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P2",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CA2"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P3",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CA3"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P4",
+    "value": "UNCERTAIN",
+    "claims": [
+     "clm:syn:CA4"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P5",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CA5"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P6",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CA6"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P7",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CA7"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P8",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CA8"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P9",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CA9"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P1",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CB1"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P1n",
+    "value": "TRUE",
+    "claims": [
+     "clm:syn:CC1"
+    ]
+   },
+   {
+    "proposition": "prop:syn:P1",
+    "value": {
+     "$unresolved": "amb:syn:hedge",
+     "candidates": [
+      "TRUE",
+      "UNCERTAIN"
+     ]
+    },
+    "claims": [
+     "clm:syn:CA1b"
+    ]
+   }
+  ],
+  "links": [
+   {
+    "relation": "delivers",
+    "source": "ev:syn:a1",
+    "target": "evi:syn:X1",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "relation": "delivers",
+    "source": "ev:syn:a1",
+    "target": "evi:syn:X3",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "relation": "delivers",
+    "source": "ev:syn:a2",
+    "target": "evi:syn:X1",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "relation": "delivers",
+    "source": "ev:syn:a3",
+    "target": "evi:syn:X3",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "relation": "delivers",
+    "source": "ev:syn:b1",
+    "target": "evi:syn:EA1",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "relation": "delivers",
+    "source": "ev:syn:c1",
+    "target": "evi:syn:EB1",
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "relation": "delivers",
+    "source": "ev:syn:a4",
+    "target": {
+     "$unresolved": "amb:syn:target",
+     "candidates": [
+      "evi:syn:X1",
+      "evi:syn:X4"
+     ]
+    },
+    "raw_ref": {
+     "kind": "synthetic"
+    }
+   },
+   {
+    "relation": "propagates_to",
+    "source": "evi:syn:EA1",
+    "target": "evi:syn:EB1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "in_target": [
+      [
+       14,
+       33
+      ]
+     ],
+     "in_source": [
+      [
+       0,
+       19
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "supported_by",
+    "source": "prop:syn:P1",
+    "target": "evi:syn:X1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       0,
+       14
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "supported_by",
+    "source": "prop:syn:P2",
+    "target": "evi:syn:X1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       15,
+       31
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "contradicted_by",
+    "source": "prop:syn:P2",
+    "target": "evi:syn:X4",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       0,
+       18
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "contradicted_by",
+    "source": "prop:syn:P3",
+    "target": "evi:syn:X4",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       19,
+       37
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "supported_by",
+    "source": "prop:syn:P4",
+    "target": "evi:syn:X1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       32,
+       44
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "supported_by",
+    "source": "prop:syn:P5",
+    "target": "evi:syn:X2",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       0,
+       23
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "contradicted_by",
+    "source": "prop:syn:P6",
+    "target": "evi:syn:X2",
+    "raw_ref": {
+     "kind": "synthetic",
+     "whole_item": true
+    }
+   },
+   {
+    "relation": {
+     "$unresolved": "amb:syn:relation",
+     "candidates": [
+      "supported_by",
+      "contradicted_by"
+     ]
+    },
+    "source": "prop:syn:P7",
+    "target": "evi:syn:X1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       15,
+       31
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "supported_by",
+    "source": "prop:syn:P8",
+    "target": "evi:syn:X1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       32,
+       44
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "supported_by",
+    "source": {
+     "$unresolved": "amb:syn:source",
+     "candidates": [
+      "prop:syn:P8",
+      "prop:syn:P1"
+     ]
+    },
+    "target": "evi:syn:X1",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       32,
+       44
+      ]
+     ]
+    }
+   },
+   {
+    "relation": "supported_by",
+    "source": "prop:syn:P9",
+    "target": "evi:syn:X4",
+    "raw_ref": {
+     "kind": "synthetic",
+     "spans": [
+      [
+       38,
+       56
+      ]
+     ]
+    }
+   }
+  ]
+ },
+ "profile_local": {
+  "fixture_class": "synthetic",
+  "synthetic_notice": "SYNTHETIC — authored test content; never evidence of natural agent behavior. Tests O2/O3/claim-delivery rules only.",
+  "synthetic_texts": {
+   "evi:syn:X1": "row_count = 42\nstatus j1 = done\ncache = warm\n",
+   "evi:syn:X2": "HEAD sensor=s1 peak=193\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\nBODY row\n",
+   "evi:syn:X3": "Result too large; preview:\nHEAD sensor=s1 peak=193\n",
+   "evi:syn:X4": "status j1 = failed\nstatus j2 = failed\nstatus j3 = failed\n",
+   "evi:syn:EA1": "There are 42 orders. Probably 42 orders. Job j1 is done. Job j2 is done. I think the cache is warm. Job j1 finished. Cache hit.",
+   "evi:syn:EA2": "Job j3 is failed.",
+   "evi:syn:EA3": "Peak was 193 on s1. The full result contains an error.",
+   "evi:syn:EB1": "Agent a said: There are 42 orders.",
+   "evi:syn:EC1": "There are not 42 orders."
+  },
+  "coverage": [
+   {
+    "event": "ev:syn:a2",
+    "status": "established",
+    "basis": "SYNTHETIC: declared, not reconstructed",
+    "input_exhausted": true,
+    "residual": "SYSTEM: synthetic agent a."
+   }
+  ],
+  "size_bounds": [
+   {
+    "event": "ev:syn:a3",
+    "item": "evi:syn:X2",
+    "bound": {
+     "quantity": "tokens",
+     "value": 900
+    },
+    "size": {
+     "quantity": "tokens",
+     "value": 4000
+    },
+    "basis": "SYNTHETIC: declared numbers",
+    "verified": true
+   },
+   {
+    "event": "ev:syn:a3",
+    "item": "evi:syn:X4",
+    "bound": {
+     "quantity": "tokens",
+     "value": 5
+    },
+    "size": {
+     "quantity": "tokens",
+     "value": 20
+    },
+    "basis": "SYNTHETIC",
+    "verified": false
+   }
+  ],
+  "annotation": {
+   "annotators": [
+    "synthetic-annotator-1",
+    "synthetic-annotator-2"
+   ],
+   "completeness": "established",
+   "note": "SYNTHETIC: declared to exercise the §3.2 negative-result gate."
+  },
+  "ambiguities": [
+   {
+    "id": "amb:syn:origin",
+    "field_path": "semantic.events[ev:syn:x1].origin",
+    "reason": "synthetic",
+    "basis": "HYP"
+   },
+   {
+    "id": "amb:syn:target",
+    "field_path": "semantic.links[6].target",
+    "reason": "synthetic",
+    "basis": "HYP"
+   },
+   {
+    "id": "amb:syn:relation",
+    "field_path": "semantic.links[15].relation",
+    "reason": "synthetic",
+    "basis": "HYP"
+   },
+   {
+    "id": "amb:syn:source",
+    "field_path": "semantic.links[17].source",
+    "reason": "synthetic",
+    "basis": "HYP"
+   },
+   {
+    "id": "amb:syn:hedge",
+    "field_path": "semantic.states[11].value",
+    "reason": "synthetic",
+    "basis": "HYP"
+   }
+  ]
+ }
+}

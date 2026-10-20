@@ -1,0 +1,564 @@
+{
+ "fixture": "synthetic-compare.trace.json",
+ "fixture_class": "synthetic",
+ "notice": "SYNTHETIC — authored test content; never evidence of natural agent behavior.",
+ "entries": [
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:a1",
+    "item": "evi:syn:X1"
+   },
+   "expected": {
+    "whole_item": "DELIVERED"
+   },
+   "basis": "0.3",
+   "note": "W1"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:a2",
+    "item": "evi:syn:X2"
+   },
+   "expected": {
+    "whole_item": "NOT_DELIVERED"
+   },
+   "basis": "0.3+PD",
+   "note": "W3: coverage + annotation gate"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:a3",
+    "item": "evi:syn:X2",
+    "spans": [
+     [
+      0,
+      23
+     ],
+     [
+      24,
+      33
+     ]
+    ]
+   },
+   "expected": {
+    "whole_item": "WHOLE_NOT_DELIVERED",
+    "spans": {
+     "exposed": [
+      {
+       "span": [
+        0,
+        23
+       ],
+       "via": "evi:syn:X3"
+      }
+     ],
+     "others": [
+      {
+       "span": [
+        24,
+        33
+       ],
+       "value": "UNKNOWN"
+      }
+     ]
+    }
+   },
+   "basis": "0.3 (W4), 0.3+PD (spans)",
+   "note": "partial exposure via substitute; bound says nothing about subsets"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:a1",
+    "item": "evi:syn:X2"
+   },
+   "expected": {
+    "whole_item": "UNKNOWN"
+   },
+   "basis": "0.3",
+   "note": "W5: no coverage, no bound"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:a3",
+    "item": "evi:syn:X4"
+   },
+   "expected": {
+    "whole_item": "UNKNOWN"
+   },
+   "basis": "0.3",
+   "note": "unverified bound ignored"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:fw1",
+    "item": "evi:syn:X1"
+   },
+   "expected": {
+    "whole_item": "NOT_APPLICABLE"
+   },
+   "basis": "PD",
+   "note": "framework origin"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:n1",
+    "item": "evi:syn:X1"
+   },
+   "expected": {
+    "whole_item": "NOT_APPLICABLE"
+   },
+   "basis": "PD",
+   "note": "absent origin"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:x1",
+    "item": "evi:syn:X1"
+   },
+   "expected": {
+    "whole_item": "UNRESOLVED",
+    "unresolved": [
+     "amb:syn:origin"
+    ]
+   },
+   "basis": "PD"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:a4",
+    "item": "evi:syn:X4"
+   },
+   "expected": {
+    "whole_item": "UNRESOLVED",
+    "unresolved": [
+     "amb:syn:target"
+    ]
+   },
+   "basis": "PD",
+   "note": "W2"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:a4",
+    "item": "evi:syn:X2"
+   },
+   "expected": {
+    "whole_item": "UNKNOWN"
+   },
+   "basis": "0.3",
+   "note": "W2 does not over-trigger"
+  },
+  {
+   "rule": "O2",
+   "inputs": {
+    "event": "ev:syn:a2",
+    "item": "evi:syn:X4",
+    "spans": [
+     [
+      38,
+      56
+     ]
+    ]
+   },
+   "expected": {
+    "whole_item": "NOT_DELIVERED",
+    "spans": {
+     "exposed": [],
+     "others": [
+      {
+       "span": [
+        38,
+        56
+       ],
+       "value": "NOT_EXPOSED_EXACT"
+      }
+     ]
+    }
+   },
+   "basis": "0.3+PD"
+  },
+  {
+   "rule": "claim_delivery",
+   "inputs": {
+    "event": "ev:syn:b1",
+    "claim": "clm:syn:CA1"
+   },
+   "expected": {
+    "value": "TRUE"
+   },
+   "basis": "0.3"
+  },
+  {
+   "rule": "claim_delivery",
+   "inputs": {
+    "event": "ev:syn:c1",
+    "claim": "clm:syn:CA1"
+   },
+   "expected": {
+    "value": "UNKNOWN",
+    "content_exposed_via": [
+     "evi:syn:EB1"
+    ]
+   },
+   "basis": "0.3 (value), PD (content_exposed_via)"
+  },
+  {
+   "rule": "claim_delivery",
+   "inputs": {
+    "event": "ev:syn:a2",
+    "claim": "clm:syn:CC1"
+   },
+   "expected": {
+    "value": "FALSE"
+   },
+   "basis": "0.3+PD"
+  },
+  {
+   "rule": "claim_delivery",
+   "inputs": {
+    "event": "ev:syn:a3",
+    "claim": "clm:syn:CA1"
+   },
+   "expected": {
+    "value": "UNKNOWN"
+   },
+   "basis": "0.3"
+  },
+  {
+   "rule": "claim_delivery",
+   "inputs": {
+    "event": "ev:syn:fw1",
+    "claim": "clm:syn:CA1"
+   },
+   "expected": {
+    "value": "NOT_APPLICABLE"
+   },
+   "basis": "PD"
+  },
+  {
+   "rule": "claim_delivery",
+   "inputs": {
+    "event": "ev:syn:x1",
+    "claim": "clm:syn:CA1"
+   },
+   "expected": {
+    "value": "UNRESOLVED"
+   },
+   "basis": "PD"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 0
+   },
+   "expected": {
+    "holder": "agent:a",
+    "event": "ev:syn:a1",
+    "direct": {
+     "value": "TRUE"
+    },
+    "comparison": "AGREES",
+    "delivered_direct": {
+     "value": "TRUE"
+    },
+    "testimonial": {
+     "value": "REPORTED",
+     "independence": "UNKNOWN",
+     "excluded_holder_claims": [
+      "clm:syn:CA1",
+      "clm:syn:CA1b"
+     ],
+     "contributions": [
+      {
+       "speakers": [
+        "agent:b"
+       ],
+       "claims": [
+        "clm:syn:CB1"
+       ],
+       "contribution": "TRUE",
+       "lineage_connected_to_holder": true
+      },
+      {
+       "speakers": [
+        "agent:c"
+       ],
+       "claims": [
+        "clm:syn:CC1"
+       ],
+       "contribution": "FALSE",
+       "lineage_connected_to_holder": false
+      }
+     ]
+    }
+   },
+   "basis": "0.3 / PD / 0.3+PD"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 1
+   },
+   "expected": {
+    "direct": {
+     "value": "UNCERTAIN"
+    },
+    "comparison": "AMBIGUOUS",
+    "delivered_direct": {
+     "value": "UNKNOWN",
+     "counted_value": "TRUE",
+     "exposure_incomplete": true
+    }
+   },
+   "basis": "0.3 / PD"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 2
+   },
+   "expected": {
+    "direct": {
+     "value": "FALSE"
+    },
+    "comparison": "DIFFERS_FROM_DIRECT",
+    "delivered_direct": {
+     "value": "UNKNOWN",
+     "counted_value": "UNKNOWN",
+     "exposure_incomplete": true
+    }
+   },
+   "basis": "0.3 / PD"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 3
+   },
+   "expected": {
+    "direct": {
+     "value": "TRUE"
+    },
+    "comparison": "NOT_APPLICABLE",
+    "delivered_direct": {
+     "value": "TRUE"
+    }
+   },
+   "basis": "0.3 / PD",
+   "note": "hedged state"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 4
+   },
+   "expected": {
+    "event": "ev:syn:a3",
+    "direct": {
+     "value": "TRUE"
+    },
+    "comparison": "AGREES",
+    "delivered_direct": {
+     "value": "TRUE",
+     "counted": [
+      {
+       "relation": "supported_by",
+       "target": "evi:syn:X2",
+       "o2_whole_item": "WHOLE_NOT_DELIVERED",
+       "grounding": "exposed-span",
+       "via": [
+        "evi:syn:X3"
+       ]
+      }
+     ]
+    }
+   },
+   "basis": "0.3 / PD",
+   "note": "exposed-span grounded"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 5
+   },
+   "expected": {
+    "direct": {
+     "value": "FALSE"
+    },
+    "comparison": "DIFFERS_FROM_DIRECT",
+    "delivered_direct": {
+     "value": "UNKNOWN",
+     "counted_value": "UNKNOWN",
+     "pending": [],
+     "excluded": [
+      {
+       "relation": "contradicted_by",
+       "target": "evi:syn:X2",
+       "o2_whole_item": "WHOLE_NOT_DELIVERED",
+       "reason": "absence-grounded, WHOLE_NOT_DELIVERED"
+      }
+     ]
+    }
+   },
+   "basis": "0.3 / PD",
+   "note": "absence-grounded link excluded by bound"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 6
+   },
+   "expected": {
+    "direct": {
+     "value": "UNRESOLVED",
+     "open_links": [
+      "amb:syn:relation"
+     ]
+    },
+    "comparison": "UNRESOLVED",
+    "delivered_direct": {
+     "value": "UNRESOLVED",
+     "exposure_incomplete": true
+    }
+   },
+   "basis": "PD"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 7
+   },
+   "expected": {
+    "direct": {
+     "value": "TRUE",
+     "stable_over_unresolved": true
+    },
+    "comparison": "AGREES"
+   },
+   "basis": "0.3 / PD"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 8
+   },
+   "expected": {
+    "event": "ev:syn:a2",
+    "direct": {
+     "value": "TRUE"
+    },
+    "comparison": "AGREES",
+    "delivered_direct": {
+     "value": "UNKNOWN",
+     "counted_value": "UNKNOWN",
+     "pending": [],
+     "excluded": [
+      {
+       "relation": "supported_by",
+       "target": "evi:syn:X4",
+       "o2_whole_item": "NOT_DELIVERED",
+       "reason": "NOT_DELIVERED and span NOT_EXPOSED_EXACT"
+      }
+     ]
+    }
+   },
+   "basis": "0.3 / PD",
+   "note": "excluded under the gate; still no 'no delivered support' verdict"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 9
+   },
+   "expected": {
+    "holder": "agent:b",
+    "event": "ev:syn:b1",
+    "testimonial": {
+     "value": "REPORTED",
+     "independence": "UNKNOWN",
+     "excluded_holder_claims": [
+      "clm:syn:CB1"
+     ],
+     "contributions": [
+      {
+       "speakers": [
+        "agent:a"
+       ],
+       "claims": [
+        "clm:syn:CA1",
+        "clm:syn:CA1b"
+       ],
+       "contribution": "UNRESOLVED",
+       "lineage_connected_to_holder": true,
+       "per_speaker": {
+        "agent:a": "UNRESOLVED"
+       },
+       "unresolved": [
+        "amb:syn:hedge"
+       ]
+      },
+      {
+       "speakers": [
+        "agent:c"
+       ],
+       "claims": [
+        "clm:syn:CC1"
+       ],
+       "contribution": "FALSE",
+       "lineage_connected_to_holder": false
+      }
+     ]
+    }
+   },
+   "basis": "0.3+PD",
+   "note": "agent:a's CA1b grounds a state whose value is unresolved {TRUE, UNCERTAIN}: completions disagree, so the contribution is UNRESOLVED, never TRUE (post-implementation audit MUST-FIX 1)."
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 10
+   },
+   "expected": {
+    "holder": "agent:c",
+    "testimonial": {
+     "value": "UNKNOWN",
+     "contributions": [],
+     "excluded_holder_claims": [
+      "clm:syn:CC1"
+     ]
+    }
+   },
+   "basis": "0.3+PD",
+   "note": "no double-negation normalization (viz D3)"
+  },
+  {
+   "rule": "O3",
+   "inputs": {
+    "state": 11
+   },
+   "expected": {
+    "direct": {
+     "value": "UNRESOLVED"
+    },
+    "delivered_direct": {
+     "value": "UNRESOLVED"
+    },
+    "testimonial": {
+     "value": "UNRESOLVED"
+    },
+    "comparison": "UNRESOLVED"
+   },
+   "basis": "PD"
+  }
+ ]
+}

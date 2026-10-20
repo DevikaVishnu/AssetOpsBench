@@ -1,0 +1,181 @@
+{
+  "profile": "agenttrace.compare/0.1",
+  "semantic": {
+    "run": {
+      "id": "aob-621-sonnet5-deep-fileobs-20261013",
+      "raw_ref": {
+        "trace": "data/assetopsbench/runs/aob-621-sonnet5-deep-fileobs-20261013.instrumented.json",
+        "trace_sha256": "aa8531f2b9771397ecd539fc0bbef8f6da8cfbe681a53fee59b557c3c55c74cd",
+        "raw_schema": "assetopsbench.deepagent.instrumented/0.1",
+        "semantic_schema": "agenttrace.semantic/0.3",
+        "semantic_schema_sha256": "2273d210090d19c17f75e98bb06875e0c55ef10b9c26528ea2471cee25c01c06",
+        "status_locator": "status",
+        "status": "ok",
+        "slice": "Comparison slice for O2/O3 (positive control). Separate from the committed fixture agenttrace_semantic_0_3/aob-621.semantic.json, which is unchanged (D3). Absence of other objects is not a claim about the run."
+      },
+      "outputs": "UNKNOWN"
+    },
+    "entities": [
+      {
+        "id": "agent:root",
+        "kind": "agent",
+        "role": "root",
+        "model": "anthropic:claude-sonnet-5",
+        "raw_ref": {"locator": "agents[agent_id=root]", "model_locator": "model"}
+      },
+      {
+        "id": "tool:read_file",
+        "kind": "tool",
+        "raw_ref": {"locator": "events[seq=121].tool", "note": "deepagents built-in filesystem tool; tool entity (adapter decision, as in the 0.3 fixture)."}
+      }
+    ],
+    "events": [
+      {
+        "id": "ev:621:read_file:01S66j",
+        "origin": "tool:read_file",
+        "order": 121,
+        "raw_ref": {"seq": [121, 122, 123, 124], "tool_call_id": "toolu_01S66jRcjY5fMbFLdxJ3H85X"}
+      },
+      {
+        "id": "ev:621:llm:157",
+        "origin": "agent:root",
+        "order": 157,
+        "raw_ref": {"seq": [157, 158], "input_locator": "events[seq=157].input_batches[0]", "note": "Final model call: rendered input at llm_start 157, answer at llm_end 158."}
+      }
+    ],
+    "evidence": [
+      {
+        "id": "evi:621:R",
+        "source": "tool",
+        "produced_by": "ev:621:read_file:01S66j",
+        "raw_ref": {
+          "seq": 123,
+          "locator": "events[seq=123].output",
+          "tool_call_id": "toolu_01S66jRcjY5fMbFLdxJ3H85X",
+          "sha256": "0734f5555f022d7d698a62c73d09601960ba0f3339661fb3392f4bdc1253cd94",
+          "text_sha256": "0734f5555f022d7d698a62c73d09601960ba0f3339661fb3392f4bdc1253cd94",
+          "size": 1331
+        }
+      },
+      {
+        "id": "evi:621:A",
+        "source": "agent",
+        "produced_by": "ev:621:llm:157",
+        "raw_ref": {
+          "seq": 158,
+          "locator": "events[seq=158].message.content[1].text",
+          "sha256": "293d820e8b92ce7422bef15d4a95801784dbca7895413debd29bd3f259b13dc1",
+          "text_sha256": "293d820e8b92ce7422bef15d4a95801784dbca7895413debd29bd3f259b13dc1",
+          "size": 2715
+        }
+      }
+    ],
+    "claims": [
+      {
+        "id": "clm:621:A:june10-tonnage-sequence",
+        "evidence": "evi:621:A",
+        "raw_ref": {
+          "seq": 158,
+          "locator": "events[seq=158].message.content[1].text",
+          "span": [1304, 1428],
+          "text": "with jumps like 1,822 → 1,115 → 3,186 → 1,281 → 5,477 → 3,173 → 77 → 4,522 tons across consecutive 15-min samples on June 10",
+          "subject_context_span": [1188, 1202],
+          "subject_context_text": "Tonnage ranges",
+          "heading_subject_span": [13, 30],
+          "heading_subject_text": "Chiller 6 Tonnage",
+          "offsets": "Python code-point offsets into the produced occurrence"
+        },
+        "proposition": "prop:621:june10-tonnage-sequence"
+      }
+    ],
+    "propositions": [
+      {
+        "id": "prop:621:june10-tonnage-sequence",
+        "form": "samples_at_successive_15min_instants(sensor=\"Chiller 6 Tonnage\", date=\"June 10\", values_rounded_to_integer=[1822, 1115, 3186, 1281, 5477, 3173, 77, 4522])"
+      }
+    ],
+    "states": [
+      {
+        "proposition": "prop:621:june10-tonnage-sequence",
+        "value": "TRUE",
+        "claims": ["clm:621:A:june10-tonnage-sequence"]
+      }
+    ],
+    "links": [
+      {
+        "relation": "delivers",
+        "source": "ev:621:llm:157",
+        "target": "evi:621:R",
+        "raw_ref": {
+          "seq": 157,
+          "locator": "events[seq=157].input_batches[0][46].content",
+          "tool_call_id": "toolu_01S66jRcjY5fMbFLdxJ3H85X",
+          "sha256": "0734f5555f022d7d698a62c73d09601960ba0f3339661fb3392f4bdc1253cd94",
+          "note": "R in the rendered input of the event that produced the claim's evidence; byte-identical."
+        }
+      },
+      {
+        "relation": "supported_by",
+        "source": "prop:621:june10-tonnage-sequence",
+        "target": "evi:621:R",
+        "raw_ref": {
+          "seq": 123,
+          "locator": "events[seq=123].output",
+          "spans": [[27, 46], [62, 101], [194, 213], [229, 268], [361, 380], [396, 435], [528, 547], [563, 602], [695, 714], [730, 768], [861, 880], [896, 934], [1027, 1046], [1062, 1100], [1193, 1212], [1228, 1266]],
+          "grounds": "Pairs of (timestamp value, \"Chiller 6 Tonnage\": value) for 8 records, 2020-06-10T16:15:00 to 18:00:00 in exact 15-minute steps, with no other timestamp in R between them. Sensor from the key; date from the timestamps; each stated value is the nearest integer to the source value, as the form states (values_rounded_to_integer).",
+          "span_constraint": "R is tool output; no grounding span is a claim span asserting P or not(P) (0.3 §5.5)."
+        }
+      }
+    ]
+  },
+  "profile_local": {
+    "fixture_class": "real",
+    "numeric_matching": [
+      {
+        "proposition": "prop:621:june10-tonnage-sequence",
+        "rule": "nearest_integer",
+        "justification": "The claim states every value as an integer with thousands separators (claim span [1304:1428]); the source values are non-integers. The claim's own display precision is the integer, so a stated n matches source x iff |x - n| < 0.5. No percentage or range tolerance.",
+        "declared": {
+          "where": "SPEC rev 2 §6.3 and this entry, 2026-10-20, before the supported_by link was written",
+          "raw_data_inspected_before": true,
+          "note": "Retrospective fixture: the raw values were already known (the committed 0.3 fixture records the same nearest-integer reading as [INF] for the first four values)."
+        },
+        "values": [
+          {"stated": 1822, "source_span": [83, 101], "source": "1821.7971284756836"},
+          {"stated": 1115, "source_span": [250, 268], "source": "1114.9343863720133"},
+          {"stated": 3186, "source_span": [417, 435], "source": "3185.5649771868093"},
+          {"stated": 1281, "source_span": [584, 602], "source": "1281.1689773785984"},
+          {"stated": 5477, "source_span": [751, 768], "source": "5476.770123504672"},
+          {"stated": 3173, "source_span": [917, 934], "source": "3172.820129104792"},
+          {"stated": 77, "source_span": [1083, 1100], "source": "76.51830258275933"},
+          {"stated": 4522, "source_span": [1249, 1266], "source": "4521.621182991773"}
+        ]
+      }
+    ],
+    "extraction": [
+      {
+        "object": "prop:621:june10-tonnage-sequence",
+        "basis": "INF",
+        "notes": [
+          "Holder-independent form (0.3 §4.6). The form itself states the precision (`values_rounded_to_integer`) and the reading of 'consecutive' (`samples_at_successive_15min_instants`), so the supported_by link is sound without profile_local (post-implementation audit MUST-FIX 2); profile_local.numeric_matching records the declared rule and its justification.",
+          "Unit not represented: the claim's \"tons\" occurs neither in R nor anywhere in the rendered input of llm_start 157 (checked by the tests), so no stored evidence grounds it. P is the sequence conjunct of the claim only.",
+          "Asset folded into the sensor name: R's first record has no asset_id line inside the read window (it is at file line 4695, outside offset 4695/limit 40); every value line carries the key \"Chiller 6 Tonnage\".",
+          "Date: the claim says \"June 10\" without a year; it is matched to timestamps with month 06 and day 10 (R: 2020-06-10).",
+          "Consecutive: read as 'the eight samples are at successive 15-minute instants'. R is a 40-line window of a larger result; it cannot show whether the full result holds other records with the same or intermediate timestamps elsewhere (ambiguity amb:621:consecutive)."
+        ]
+      }
+    ],
+    "link_assessment": [
+      {"event": "ev:621:llm:157", "item": "evi:621:R", "proposition": "prop:621:june10-tonnage-sequence", "outcome": "supported_by", "reason": "R records the eight values, the sensor key and the 15-minute timestamps the proposition is about (0.3 §7.1 direct)."}
+    ],
+    "coverage": [
+      {"event": "ev:621:llm:157", "status": "unassessed", "basis": "", "input_exhausted": false, "residual": "", "note": "No tokenizer reconstruction has been run."}
+    ],
+    "size_bounds": [],
+    "annotation": {"annotators": ["annotator-1 (Claude, 2026-10-20)"], "completeness": "not_established"},
+    "ambiguities": [
+      {"id": "amb:621:consecutive", "field_path": "semantic.propositions[0].form", "reason": "'consecutive' is grounded within R's window only; see extraction notes.", "basis": "INF"},
+      {"id": "amb:621:near-tie", "field_path": "profile_local.numeric_matching[0].values[6]", "reason": "76.518 -> 77 is 0.018 from the 0.5 boundary; it matches under the declared rule but is the least robust value.", "basis": "OBS"}
+    ]
+  }
+}

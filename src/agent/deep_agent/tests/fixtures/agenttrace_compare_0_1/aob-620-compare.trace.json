@@ -1,0 +1,172 @@
+{
+  "profile": "agenttrace.compare/0.1",
+  "semantic": {
+    "run": {
+      "id": "aob-620-sonnet5-deep-fileobs-20261013",
+      "raw_ref": {
+        "trace": "data/assetopsbench/runs/aob-620-sonnet5-deep-fileobs-20261013.instrumented.json",
+        "trace_sha256": "890f8fc78637f20c614df46bae49600d0178c6fa81c1aec23f352d27985a1436",
+        "raw_schema": "assetopsbench.deepagent.instrumented/0.1",
+        "semantic_schema": "agenttrace.semantic/0.3",
+        "semantic_schema_sha256": "2273d210090d19c17f75e98bb06875e0c55ef10b9c26528ea2471cee25c01c06",
+        "status_locator": "status",
+        "status": "ok",
+        "slice": "Comparison slice for O2/O3 (abstention control). No external benchmark or data-file evidence is represented (D4). Absence of other objects is not a claim about the run."
+      },
+      "outputs": "UNKNOWN"
+    },
+    "entities": [
+      {
+        "id": "agent:root",
+        "kind": "agent",
+        "role": "root",
+        "model": "anthropic:claude-sonnet-5",
+        "raw_ref": {"locator": "agents[agent_id=root]", "model_locator": "model"}
+      },
+      {"id": "tool:sensor_stats", "kind": "tool", "raw_ref": {"locator": "events[seq=34].tool"}},
+      {"id": "tool:history", "kind": "tool", "raw_ref": {"locator": "events[seq=54].tool"}}
+    ],
+    "events": [
+      {
+        "id": "ev:620:sensor_stats:011eRQ",
+        "origin": "tool:sensor_stats",
+        "order": 34,
+        "raw_ref": {"seq": [34, 39, 40], "tool_call_id": "toolu_011eRQPcsSKjVLYBpg6hdD25", "note": "tool_start 34 (site MAIN, asset Chiller 6, no time arguments), tool_end 39, tool_result_committed 40."}
+      },
+      {
+        "id": "ev:620:history:017APG",
+        "origin": "tool:history",
+        "order": 54,
+        "raw_ref": {"seq": [54, 55, 56], "tool_call_id": "toolu_017APGb8RTjAQJHjdxG99Tb8", "note": "tool_start 54 (10 sensors incl. Condenser Water Flow; 2020-06-01 to 2020-06-02), tool_end 55, tool_result_committed 56."}
+      },
+      {
+        "id": "ev:620:llm:57",
+        "origin": "agent:root",
+        "order": 57,
+        "raw_ref": {"seq": [57, 58], "input_locator": "events[seq=57].input_batches[0]", "note": "Final model call: rendered input at llm_start 57, answer at llm_end 58."}
+      }
+    ],
+    "evidence": [
+      {
+        "id": "evi:620:S",
+        "source": "tool",
+        "produced_by": "ev:620:sensor_stats:011eRQ",
+        "raw_ref": {
+          "seq": 39,
+          "locator": "events[seq=39].output",
+          "text_form": "content_list_text",
+          "tool_call_id": "toolu_011eRQPcsSKjVLYBpg6hdD25",
+          "sha256": "310e04eafccfc546532ba775094887c48031216a9dbd9295382b1154efd50341",
+          "text_sha256": "301fbb1dc91227c869006b99ceff0b90b2525300880e741124701766d2691f07",
+          "note": "sha256 is the capture's digest of the list form; text_sha256 is the joined text."
+        }
+      },
+      {
+        "id": "evi:620:H",
+        "source": "tool",
+        "produced_by": "ev:620:history:017APG",
+        "raw_ref": {
+          "seq": 55,
+          "locator": "events[seq=55].output",
+          "text_form": "content_list_text",
+          "tool_call_id": "toolu_017APGb8RTjAQJHjdxG99Tb8",
+          "sha256": "6755c3221e8e35ba8e2779ae9529bedd923b0f5111925ade1c24c4f6e6042c80",
+          "text_sha256": "0897809f03c72e39db91de453edd283c20886c4d14a3491239e0d2a760645dcf"
+        }
+      },
+      {
+        "id": "evi:620:A",
+        "source": "agent",
+        "produced_by": "ev:620:llm:57",
+        "raw_ref": {
+          "seq": 58,
+          "locator": "events[seq=58].message.content[1].text",
+          "sha256": "59685e30725cbca6c294bf27e21ded364cc450a5af71ad595080d14f86ccbfac",
+          "text_sha256": "59685e30725cbca6c294bf27e21ded364cc450a5af71ad595080d14f86ccbfac",
+          "size": 6055
+        }
+      }
+    ],
+    "claims": [
+      {
+        "id": "clm:620:A:cwf-consecutive-swing",
+        "evidence": "evi:620:A",
+        "raw_ref": {
+          "seq": 58,
+          "locator": "events[seq=58].message.content[1].text",
+          "span": [5231, 5312],
+          "text": "Condenser Water Flow swinging from 0 to 11,200 between consecutive 15‑min samples",
+          "subject_context_span": [5090, 5127],
+          "subject_context_text": "raw June‑2020 telemetry for Chiller 6",
+          "offsets": "Python code-point offsets into the produced occurrence; '‑' is U+2011"
+        },
+        "proposition": "prop:620:cwf-consecutive-swing"
+      }
+    ],
+    "propositions": [
+      {
+        "id": "prop:620:cwf-consecutive-swing",
+        "form": "consecutive_15min_swing(sensor=\"Chiller 6 Condenser Water Flow\", period=\"June 2020\", from_value=0, to_value=11200)"
+      }
+    ],
+    "states": [
+      {
+        "proposition": "prop:620:cwf-consecutive-swing",
+        "value": "TRUE",
+        "claims": ["clm:620:A:cwf-consecutive-swing"]
+      }
+    ],
+    "links": [
+      {
+        "relation": "delivers",
+        "source": "ev:620:llm:57",
+        "target": "evi:620:S",
+        "raw_ref": {"seq": 57, "locator": "events[seq=57].input_batches[0][14].content", "tool_call_id": "toolu_011eRQPcsSKjVLYBpg6hdD25", "sha256": "310e04eafccfc546532ba775094887c48031216a9dbd9295382b1154efd50341", "note": "Identical to tool_end 39 output; first delivered at llm_start 41."}
+      },
+      {
+        "relation": "delivers",
+        "source": "ev:620:llm:57",
+        "target": "evi:620:H",
+        "raw_ref": {"seq": 57, "locator": "events[seq=57].input_batches[0][21].content", "tool_call_id": "toolu_017APGb8RTjAQJHjdxG99Tb8", "sha256": "6755c3221e8e35ba8e2779ae9529bedd923b0f5111925ade1c24c4f6e6042c80", "note": "Identical to tool_end 55 output; first and only delivery."}
+      }
+    ]
+  },
+  "profile_local": {
+    "fixture_class": "real",
+    "numeric_matching": [
+      {
+        "proposition": "prop:620:cwf-consecutive-swing",
+        "rule": "exact",
+        "justification": "Default (D1). No link was extracted, so no matching was applied. '11,200' against the delivered max 11206.94 would need rounding to hundreds, which the claim's display does not justify under D1; no tolerance is introduced.",
+        "declared": {"where": "SPEC rev 2 §6.3 and this entry, 2026-10-20", "raw_data_inspected_before": true},
+        "values": []
+      }
+    ],
+    "extraction": [
+      {
+        "object": "prop:620:cwf-consecutive-swing",
+        "basis": "INF",
+        "notes": [
+          "Scope from the claim's sentence: the subject is 'the raw June‑2020 telemetry for Chiller 6' (span [5090:5127]); the claim is one example inside an 'e.g.' list.",
+          "Read as existential: somewhere in June 2020, two consecutive 15-minute Condenser Water Flow samples go from about 0 to about 11,200 (ambiguity amb:620:reading)."
+        ]
+      }
+    ],
+    "link_assessment": [
+      {"event": "ev:620:llm:57", "item": "evi:620:S", "proposition": "prop:620:cwf-consecutive-swing", "outcome": "no link", "reason": "sensor_stats records month count/min/max/mean for the sensor (min 0.0, max 11206.94) but nothing about which samples are adjacent; not what P is about (0.3 §5.5, §7.1). It could support a separate range proposition; any bridge to P is inference (§7.4)."},
+      {"event": "ev:620:llm:57", "item": "evi:620:H", "proposition": "prop:620:cwf-consecutive-swing", "outcome": "no link", "reason": "history covers 2020-06-01 only (96 observations; no zero values; largest consecutive step 11130.68 -> 411.95). One day cannot bear against an existential claim over the month, and it contains no 0 to support it."}
+    ],
+    "not_represented": [
+      {"item": "AssetOpsBench src/couchdb/scenarios_data/shared/iot/chiller_6.json", "reason": "External benchmark data, not delivered to the agent; excluded by D4."},
+      {"item": "eviction file /large_tool_results/toolu_01MHvH… and read_file/grep windows (seq 37, 43-50)", "reason": "They hold Run Status data only and do not bear on Condenser Water Flow."}
+    ],
+    "coverage": [
+      {"event": "ev:620:llm:57", "status": "unassessed", "basis": "", "input_exhausted": false, "residual": "", "note": "No tokenizer reconstruction has been run."}
+    ],
+    "size_bounds": [],
+    "annotation": {"annotators": ["annotator-1 (Claude, 2026-10-20)"], "completeness": "not_established"},
+    "ambiguities": [
+      {"id": "amb:620:reading", "field_path": "semantic.propositions[0].form", "reason": "'swinging from 0 to 11,200 between consecutive 15‑min samples' may mean one consecutive pair spanning ~0 to ~11,200, or repeated swings across that range. No delivered evidence bears directly on either reading, so the outcome is the same.", "basis": "INF"}
+    ]
+  }
+}

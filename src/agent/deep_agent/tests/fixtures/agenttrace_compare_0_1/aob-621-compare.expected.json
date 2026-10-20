@@ -1,0 +1,16 @@
+{
+  "fixture": "aob-621-compare.trace.json",
+  "fixture_class": "real",
+  "role": "positive control",
+  "entries": [
+    {"rule": "O2", "inputs": {"event": "ev:621:llm:157", "item": "evi:621:R"}, "expected": {"whole_item": "DELIVERED"}, "basis": "0.3"},
+    {"rule": "claim_delivery", "inputs": {"event": "ev:621:llm:157", "claim": "clm:621:A:june10-tonnage-sequence"}, "expected": {"value": "UNKNOWN"}, "basis": "0.3", "note": "The claim's evidence is the event's own output; nothing delivers it and coverage is not established."},
+    {"rule": "O3", "inputs": {"state": 0}, "expected": {
+      "holder": "agent:root", "event": "ev:621:llm:157",
+      "direct": {"value": "TRUE"},
+      "comparison": "AGREES",
+      "delivered_direct": {"value": "TRUE", "counted_value": "TRUE", "counted": [{"relation": "supported_by", "target": "evi:621:R", "o2_whole_item": "DELIVERED", "grounding": "delivered"}], "excluded": [], "pending": []},
+      "testimonial": {"value": "UNKNOWN", "contributions": [], "excluded_holder_claims": ["clm:621:A:june10-tonnage-sequence"]}
+    }, "basis": "0.3 (direct), PD (comparison, delivered_direct), 0.3+PD (testimonial)"}
+  ]
+}
