@@ -1,0 +1,290 @@
+{
+  "run": {
+    "id": "aob-sc3-sonnet5-deep-spec-B-20261014",
+    "raw_ref": {
+      "trace": "data/assetopsbench/runs/aob-sc3-sonnet5-deep-spec-B-20261014.instrumented.json",
+      "trace_sha256": "4d5759091df0e9bc800f209ff4cffca916a33b06b1441ee086cbf1585c339386",
+      "raw_schema": "assetopsbench.deepagent.instrumented/0.1",
+      "semantic_schema": "agenttrace.semantic/0.3",
+      "semantic_schema_sha256": "2273d210090d19c17f75e98bb06875e0c55ef10b9c26528ea2471cee25c01c06",
+      "status_locator": "status",
+      "status": "error",
+      "error_locator": "error.type",
+      "error_type": "BudgetExceeded",
+      "budget_guard_locator": "budget_guard",
+      "budget_guard_outcome": "BUDGET-STOPPED",
+      "budget_guard_stop_reason": "max_cost_usd",
+      "termination_seq": [416, 417, 418, 419],
+      "termination_note": "The guard refused the child's model call at llm_start 416 before any provider request (no llm_end). agent_error 417 (sub-1), delegation_error 418, agent_error 419 (root). No native trajectory file exists on disk (the runner writes it only on success), although the record's native_trajectory_file field still names it. The summarizer's file_write 384 (/conversation_history/session_45c0720a.md) has agent_id null and attribution unattributed; it is outside this slice. The child returned nothing to the parent.",
+      "outputs_note": "No product marker exists in the record, so run.outputs is UNKNOWN (0.3 §4.1), not an empty list.",
+      "slice": "Minimal hand-grounded slice. Only the objects below are represented; absence of other objects is not a claim about the run."
+    },
+    "outputs": "UNKNOWN"
+  },
+  "entities": [
+    {
+      "id": "agent:root",
+      "kind": "agent",
+      "role": "root",
+      "model": "anthropic:claude-sonnet-5",
+      "raw_ref": {
+        "locator": "agents[agent_id=root]",
+        "name": "deep-agent",
+        "role_locator": "agents[agent_id=root].kind",
+        "model_locator": "model",
+        "note": "The record has one run-level model field and no per-agent model."
+      }
+    },
+    {
+      "id": "agent:sub-1",
+      "kind": "agent",
+      "role": "subagent",
+      "model": "anthropic:claude-sonnet-5",
+      "raw_ref": {
+        "locator": "agents[agent_id=sub-1]",
+        "name": "general-purpose",
+        "role_locator": "agents[agent_id=sub-1].kind",
+        "model_locator": "model",
+        "delegation_id": "toolu_01KyhJPc3G7q4qtTuKQFRFMu",
+        "note": "Run-level model field; deepagents 0.5.3 gives general-purpose the coordinator's model (graph.py general_purpose_spec). The parent/child relation is kept here only: hierarchy is DEFERRED in 0.3 (§12)."
+      }
+    },
+    {
+      "id": "tool:history",
+      "kind": "tool",
+      "raw_ref": {"locator": "events[seq=38].tool", "note": "IoT MCP server tool."}
+    },
+    {
+      "id": "tool:grep",
+      "kind": "tool",
+      "raw_ref": {
+        "locator": "events[seq=380].tool",
+        "note": "deepagents built-in filesystem tool, offered to the model as a tool; modelled as a tool entity (adapter decision)."
+      }
+    },
+    {
+      "id": "tool:read_file",
+      "kind": "tool",
+      "raw_ref": {
+        "locator": "events[seq=388].tool",
+        "note": "deepagents built-in filesystem tool, offered to the model as a tool; modelled as a tool entity (adapter decision)."
+      }
+    },
+    {
+      "id": "framework:deepagents",
+      "kind": "framework",
+      "raw_ref": {"locator": "versions.deepagents", "version": "0.5.3"}
+    }
+  ],
+  "events": [
+    {
+      "id": "ev:sc3:history:01CD6j",
+      "origin": "tool:history",
+      "order": 38,
+      "raw_ref": {"seq": [38, 39], "tool_call_id": "toolu_01CD6jj8EqAo3Qv59xzjUKmP", "agent_context": "root"}
+    },
+    {
+      "id": "ev:sc3:evict-write:01CD6j",
+      "origin": "framework:deepagents",
+      "order": 40,
+      "raw_ref": {
+        "seq": 40,
+        "raw_type": "file_write",
+        "path": "/large_tool_results/toolu_01CD6jj8EqAo3Qv59xzjUKmP",
+        "raw_agent_id": "root",
+        "raw_attribution": "tool_call",
+        "note": "The capture records agent_id=root because the write happens inside root's tool-call context. The write itself is the deepagents FilesystemMiddleware large-tool-result eviction (deepagents 0.5.3 middleware/filesystem.py:1344-1347), so the event is attributed to the framework (adapter decision). The record has no created_at for file_write."
+      }
+    },
+    {
+      "id": "ev:sc3:root:llm:92",
+      "origin": "agent:root",
+      "order": 92,
+      "raw_ref": {"seq": [92, 93], "input_locator": "events[seq=92].input_batches[0]", "note": "Model call whose output (llm_end 93) issues the task call."}
+    },
+    {
+      "id": "ev:sc3:sub-1:llm:96",
+      "origin": "agent:sub-1",
+      "order": 96,
+      "raw_ref": {"seq": [96, 97], "input_locator": "events[seq=96].input_batches[0]"}
+    },
+    {
+      "id": "ev:sc3:grep:0157En",
+      "origin": "tool:grep",
+      "order": 380,
+      "raw_ref": {
+        "seq": [380, 381, 382],
+        "tool_call_id": "toolu_0157EnXeA9v8fjFWocGXB6XP",
+        "agent_context": "sub-1",
+        "args_locator": "events[seq=380].args",
+        "note": "Directory-wide grep over /large_tool_results. The capture emits no file_read for grep."
+      }
+    },
+    {
+      "id": "ev:sc3:sub-1:llm:386",
+      "origin": "agent:sub-1",
+      "order": 386,
+      "raw_ref": {"seq": [386, 387], "input_locator": "events[seq=386].input_batches[0]"}
+    },
+    {
+      "id": "ev:sc3:read_file:01LBku",
+      "origin": "tool:read_file",
+      "order": 388,
+      "raw_ref": {
+        "seq": [388, 389, 390, 391],
+        "tool_call_id": "toolu_01LBkuZrj7FBegbP5Xbt5JmH",
+        "agent_context": "sub-1",
+        "file_read": {"seq": 389, "path": "/large_tool_results/toolu_01CD6jj8EqAo3Qv59xzjUKmP", "offset": 0, "limit": 30, "window_sha256": "5a85a8478e142dda8e20adbd968ad2ac07643cc7908d8d0f9f8511aa16054ebc", "created_at": "2026-10-14T18:02:13.335783+00:00"}
+      }
+    },
+    {
+      "id": "ev:sc3:sub-1:llm:392",
+      "origin": "agent:sub-1",
+      "order": 392,
+      "raw_ref": {"seq": [392, 393], "input_locator": "events[seq=392].input_batches[0]"}
+    },
+    {
+      "id": "ev:sc3:read_file:01HXqP",
+      "origin": "tool:read_file",
+      "order": 394,
+      "raw_ref": {
+        "seq": [394, 395, 396, 397],
+        "tool_call_id": "toolu_01HXqPxCvxiierkLsZii69Je",
+        "agent_context": "sub-1",
+        "file_read": {"seq": 395, "path": "/large_tool_results/toolu_01CD6jj8EqAo3Qv59xzjUKmP", "offset": 30, "limit": 25, "window_sha256": "e44ea80cccc259593bc7cbdc9150d97714a51efd618b8251d5a882a22fe46849", "created_at": "2026-10-14T18:02:13.335783+00:00"}
+      }
+    },
+    {
+      "id": "ev:sc3:sub-1:llm:398",
+      "origin": "agent:sub-1",
+      "order": 398,
+      "raw_ref": {"seq": [398, 399], "input_locator": "events[seq=398].input_batches[0]"}
+    },
+    {
+      "id": "ev:sc3:read_file:01MsNy",
+      "origin": "tool:read_file",
+      "order": 400,
+      "raw_ref": {
+        "seq": [400, 401, 402, 403],
+        "tool_call_id": "toolu_01MsNyQNoR6kqMbxtDdwEdoc",
+        "agent_context": "sub-1",
+        "file_read": {"seq": 401, "path": "/large_tool_results/toolu_01CD6jj8EqAo3Qv59xzjUKmP", "offset": 4965, "limit": 30, "window_sha256": "ac1cb0972053f0bd0665df9221e24a5cdc69b9e736ca3d9ac3917ad0f727787c", "created_at": "2026-10-14T18:02:13.335783+00:00"}
+      }
+    },
+    {
+      "id": "ev:sc3:sub-1:llm:404",
+      "origin": "agent:sub-1",
+      "order": 404,
+      "raw_ref": {"seq": [404, 405], "input_locator": "events[seq=404].input_batches[0]"}
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evi:sc3:O",
+      "source": "tool",
+      "produced_by": "ev:sc3:history:01CD6j",
+      "raw_ref": {
+        "seq": 39,
+        "locator": "events[seq=39].output",
+        "tool_call_id": "toolu_01CD6jj8EqAo3Qv59xzjUKmP",
+        "sha256": "241cbe2c6553ad8e4a385587eb4f888e58ea4818d3fe6f94763acfa0b70e4a39",
+        "sha256_basis": "json.dumps(output, default=str) of the list form, as the capture hashes non-string content",
+        "text_part_locator": "events[seq=39].output[0].text",
+        "text_part_sha256": "00ab1468615d663a6eaa3d3f4756c7847b8dc41e05afd1e3ef82804321ab1ed6",
+        "note": "Root's model never saw O in full: from llm_start 42 on it saw only the 967-char substitute (tool_result_committed 41, sha 1f32f254...). The substitute is not represented in this slice."
+      }
+    },
+    {
+      "id": "evi:sc3:F",
+      "source": "tool",
+      "produced_by": "ev:sc3:evict-write:01CD6j",
+      "raw_ref": {
+        "seq": 40,
+        "path": "/large_tool_results/toolu_01CD6jj8EqAo3Qv59xzjUKmP",
+        "sha256": "00ab1468615d663a6eaa3d3f4756c7847b8dc41e05afd1e3ef82804321ab1ed6",
+        "size": 133306,
+        "note": "Framework-managed file whose content is the history tool's text, so source is the author class tool (0.3 §4.4) and the producer is the framework write. No link from O to F is stored: the write is not an agent-input event (§5.3 known limit, §12)."
+      }
+    },
+    {
+      "id": "evi:sc3:D",
+      "source": "agent",
+      "produced_by": "ev:sc3:root:llm:92",
+      "raw_ref": {
+        "seq": 93,
+        "locator": "events[seq=93].message.tool_calls[0].args.description",
+        "tool_call_id": "toolu_01KyhJPc3G7q4qtTuKQFRFMu",
+        "sha256": "ec4ce14d138def379c5f50080f5c6f0d1d3e2c8341a4815678eb3ce4ba9e8ed1",
+        "size": 70,
+        "note": "Delegation description of the task call (subagent_type general-purpose). The same call also carried instructions=\"placeholder\", which the task schema does not accept and which never reached the child. delegation_start 94 is a framework label kept in raw_ref only."
+      }
+    },
+    {
+      "id": "evi:sc3:G",
+      "source": "tool",
+      "produced_by": "ev:sc3:grep:0157En",
+      "raw_ref": {
+        "seq": 381,
+        "locator": "events[seq=381].output",
+        "tool_call_id": "toolu_0157EnXeA9v8fjFWocGXB6XP",
+        "sha256": "33f27177ebd9247cc5030e22b20b3556e3b15d61bd7f03b92239159e669707bf",
+        "size": 80070,
+        "committed_seq": 382,
+        "note": "Lists matches from three files, including /large_tool_results/toolu_01CD6jj8EqAo3Qv59xzjUKmP (F, written by ev:sc3:evict-write:01CD6j in root's tool-call context); output truncated (\"[results truncated...]\")."
+      }
+    },
+    {
+      "id": "evi:sc3:R1",
+      "source": "tool",
+      "produced_by": "ev:sc3:read_file:01LBku",
+      "raw_ref": {"seq": 390, "locator": "events[seq=390].output", "tool_call_id": "toolu_01LBkuZrj7FBegbP5Xbt5JmH", "sha256": "6fe3b41d502a104f7d9c362e99db5a30f0a48d27dcf024f7903b5fc25af0903d", "size": 980, "committed_seq": 391}
+    },
+    {
+      "id": "evi:sc3:R2",
+      "source": "tool",
+      "produced_by": "ev:sc3:read_file:01HXqP",
+      "raw_ref": {"seq": 396, "locator": "events[seq=396].output", "tool_call_id": "toolu_01HXqPxCvxiierkLsZii69Je", "sha256": "59c1b6261ad9b03d91b8e98fe28be8bc1880b60a242edc99a2c028f075958fac", "size": 853, "committed_seq": 397}
+    },
+    {
+      "id": "evi:sc3:R3",
+      "source": "tool",
+      "produced_by": "ev:sc3:read_file:01MsNy",
+      "raw_ref": {"seq": 402, "locator": "events[seq=402].output", "tool_call_id": "toolu_01MsNyQNoR6kqMbxtDdwEdoc", "sha256": "466ad85b00cfb4201b252c6b592a789ad5966f4c6f7e10381979e3859a813db9", "size": 1002, "committed_seq": 403}
+    }
+  ],
+  "claims": [],
+  "propositions": [],
+  "states": [],
+  "links": [
+    {
+      "relation": "delivers",
+      "source": "ev:sc3:sub-1:llm:96",
+      "target": "evi:sc3:D",
+      "raw_ref": {"seq": 96, "locator": "events[seq=96].input_batches[0][1].content", "role": "human", "sha256": "ec4ce14d138def379c5f50080f5c6f0d1d3e2c8341a4815678eb3ce4ba9e8ed1", "note": "The child's first rendered input: its own system prompt plus D as the only human message."}
+    },
+    {
+      "relation": "delivers",
+      "source": "ev:sc3:sub-1:llm:386",
+      "target": "evi:sc3:G",
+      "raw_ref": {"seq": 386, "locator": "events[seq=386].input_batches[0][7].content", "tool_call_id": "toolu_0157EnXeA9v8fjFWocGXB6XP", "sha256": "33f27177ebd9247cc5030e22b20b3556e3b15d61bd7f03b92239159e669707bf", "note": "First delivery of G. It is in the verbatim tail the summarizer kept after the framework summary (llm_start 383 / llm_end 385); llm_start 383 does not contain G."}
+    },
+    {
+      "relation": "delivers",
+      "source": "ev:sc3:sub-1:llm:392",
+      "target": "evi:sc3:R1",
+      "raw_ref": {"seq": 392, "locator": "events[seq=392].input_batches[0][9].content", "tool_call_id": "toolu_01LBkuZrj7FBegbP5Xbt5JmH", "sha256": "6fe3b41d502a104f7d9c362e99db5a30f0a48d27dcf024f7903b5fc25af0903d"}
+    },
+    {
+      "relation": "delivers",
+      "source": "ev:sc3:sub-1:llm:398",
+      "target": "evi:sc3:R2",
+      "raw_ref": {"seq": 398, "locator": "events[seq=398].input_batches[0][11].content", "tool_call_id": "toolu_01HXqPxCvxiierkLsZii69Je", "sha256": "59c1b6261ad9b03d91b8e98fe28be8bc1880b60a242edc99a2c028f075958fac"}
+    },
+    {
+      "relation": "delivers",
+      "source": "ev:sc3:sub-1:llm:404",
+      "target": "evi:sc3:R3",
+      "raw_ref": {"seq": 404, "locator": "events[seq=404].input_batches[0][13].content", "tool_call_id": "toolu_01MsNyQNoR6kqMbxtDdwEdoc", "sha256": "466ad85b00cfb4201b252c6b592a789ad5966f4c6f7e10381979e3859a813db9"}
+    }
+  ]
+}

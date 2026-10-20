@@ -1,0 +1,187 @@
+{
+  "run": {
+    "id": "aob-621-sonnet5-deep-fileobs-20261013",
+    "raw_ref": {
+      "trace": "data/assetopsbench/runs/aob-621-sonnet5-deep-fileobs-20261013.instrumented.json",
+      "trace_sha256": "aa8531f2b9771397ecd539fc0bbef8f6da8cfbe681a53fee59b557c3c55c74cd",
+      "raw_schema": "assetopsbench.deepagent.instrumented/0.1",
+      "semantic_schema": "agenttrace.semantic/0.3",
+      "semantic_schema_sha256": "2273d210090d19c17f75e98bb06875e0c55ef10b9c26528ea2471cee25c01c06",
+      "status_locator": "status",
+      "status": "ok",
+      "harness_answer_marker": {
+        "file": "data/assetopsbench/runs/aob-621-sonnet5-deep-fileobs-20261013.json",
+        "file_sha256": "8645198b2fe14df9a7afd0c8e8b4530eff1067eeb166e8c823fed5309d0130ef",
+        "locator": "answer",
+        "equals_evidence": "evi:621:A",
+        "note": "Benchmark-harness marker. Whether it counts as a product marker is OPEN (0.3 §4.1, §12), so it stays here and run.outputs is UNKNOWN."
+      },
+      "slice": "Minimal hand-grounded slice. Only the objects below are represented; absence of other objects is not a claim about the run."
+    },
+    "outputs": "UNKNOWN"
+  },
+  "entities": [
+    {
+      "id": "agent:root",
+      "kind": "agent",
+      "role": "root",
+      "model": "anthropic:claude-sonnet-5",
+      "raw_ref": {
+        "locator": "agents[agent_id=root]",
+        "name": "deep-agent",
+        "role_locator": "agents[agent_id=root].kind",
+        "model_locator": "model",
+        "note": "The record has one run-level model field and no per-agent model."
+      }
+    },
+    {
+      "id": "tool:read_file",
+      "kind": "tool",
+      "raw_ref": {
+        "locator": "events[seq=121].tool",
+        "note": "deepagents built-in filesystem tool, offered to the model as a tool; modelled as a tool entity (adapter decision)."
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "ev:621:read_file:01S66j",
+      "origin": "tool:read_file",
+      "order": 121,
+      "raw_ref": {
+        "seq": [121, 122, 123, 124],
+        "tool_call_id": "toolu_01S66jRcjY5fMbFLdxJ3H85X",
+        "note": "tool_start 121, file_read 122 (offset 4695, limit 40, window_sha256 8fe92fd5...), tool_end 123, tool_result_committed 124."
+      }
+    },
+    {
+      "id": "ev:621:llm:125",
+      "origin": "agent:root",
+      "order": 125,
+      "raw_ref": {
+        "seq": [125, 126],
+        "input_locator": "events[seq=125].input_batches[0]",
+        "note": "Model call: rendered input at llm_start 125, output at llm_end 126."
+      }
+    },
+    {
+      "id": "ev:621:llm:157",
+      "origin": "agent:root",
+      "order": 157,
+      "raw_ref": {
+        "seq": [157, 158],
+        "input_locator": "events[seq=157].input_batches[0]",
+        "note": "Model call: rendered input at llm_start 157, output (final answer) at llm_end 158."
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evi:621:R",
+      "source": "tool",
+      "produced_by": "ev:621:read_file:01S66j",
+      "raw_ref": {
+        "seq": 123,
+        "locator": "events[seq=123].output",
+        "tool_call_id": "toolu_01S66jRcjY5fMbFLdxJ3H85X",
+        "sha256": "0734f5555f022d7d698a62c73d09601960ba0f3339661fb3392f4bdc1253cd94",
+        "size": 1331,
+        "committed_seq": 124,
+        "upstream_note": "Content is lines 4696-4735 of /large_tool_results/toolu_016qXfh1yoXBzXpoixb8LJmS, the file the framework wrote (file_write 26) from the evicted page-1 history result (tool_end 25). Those hops are tool -> file -> tool and are not stored (0.3 §5.3 known limit, §12)."
+      }
+    },
+    {
+      "id": "evi:621:A",
+      "source": "agent",
+      "produced_by": "ev:621:llm:157",
+      "raw_ref": {
+        "seq": 158,
+        "locator": "events[seq=158].message.content[1].text",
+        "sha256": "293d820e8b92ce7422bef15d4a95801784dbca7895413debd29bd3f259b13dc1",
+        "size": 2715
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "clm:621:A:june10-consecutive-tonnage",
+      "evidence": "evi:621:A",
+      "raw_ref": {
+        "seq": 158,
+        "locator": "events[seq=158].message.content[1].text",
+        "span": [1304, 1428],
+        "text": "with jumps like 1,822 → 1,115 → 3,186 → 1,281 → 5,477 → 3,173 → 77 → 4,522 tons across consecutive 15-min samples on June 10",
+        "subject_context_span": [1188, 1202],
+        "subject_context_text": "Tonnage ranges",
+        "offsets": "Python code-point offsets (the arrows are non-ASCII)",
+        "heading_subject_span": [13, 30],
+        "heading_subject_text": "Chiller 6 Tonnage",
+        "note": "The subject is fixed by the same sentence (span 1188-1202, \"Tonnage ranges\") and by the answer heading (span 13-30, \"Chiller 6 Tonnage\"), which fix asset and sensor in the proposition."
+      },
+      "proposition": "prop:621:june10-consecutive-tonnage"
+    }
+  ],
+  "propositions": [
+    {
+      "id": "prop:621:june10-consecutive-tonnage",
+      "form": "consecutive_15min_samples(asset=\"Chiller 6\", sensor=\"Chiller 6 Tonnage\", date=\"June 10\", unit=\"tons\", values_as_stated=[1822, 1115, 3186, 1281, 5477, 3173, 77, 4522])"
+    }
+  ],
+  "states": [
+    {
+      "proposition": "prop:621:june10-consecutive-tonnage",
+      "value": "TRUE",
+      "claims": ["clm:621:A:june10-consecutive-tonnage"]
+    }
+  ],
+  "links": [
+    {
+      "relation": "delivers",
+      "source": "ev:621:llm:125",
+      "target": "evi:621:R",
+      "raw_ref": {
+        "seq": 125,
+        "locator": "events[seq=125].input_batches[0][46].content",
+        "tool_call_id": "toolu_01S66jRcjY5fMbFLdxJ3H85X",
+        "sha256": "0734f5555f022d7d698a62c73d09601960ba0f3339661fb3392f4bdc1253cd94",
+        "note": "First rendered input containing R, byte-identical."
+      }
+    },
+    {
+      "relation": "delivers",
+      "source": "ev:621:llm:157",
+      "target": "evi:621:R",
+      "raw_ref": {
+        "seq": 157,
+        "locator": "events[seq=157].input_batches[0][46].content",
+        "tool_call_id": "toolu_01S66jRcjY5fMbFLdxJ3H85X",
+        "sha256": "0734f5555f022d7d698a62c73d09601960ba0f3339661fb3392f4bdc1253cd94",
+        "note": "R in the rendered input of the event that produced A (required by 0.3 §5.3 condition 2)."
+      }
+    },
+    {
+      "relation": "propagates_to",
+      "source": "evi:621:R",
+      "target": "evi:621:A",
+      "raw_ref": {
+        "in_target": {
+          "seq": 158,
+          "locator": "events[seq=158].message.content[1].text",
+          "span": [1320, 1349],
+          "text": "1,822 → 1,115 → 3,186 → 1,281"
+        },
+        "in_source": {
+          "seq": 123,
+          "locator": "events[seq=123].output",
+          "spans": [[83, 101], [250, 268], [417, 435], [584, 602]],
+          "text": ["1821.7971284756836", "1114.9343863720133", "3185.5649771868093", "1281.1689773785984"]
+        },
+        "production": "evi:621:A.produced_by = ev:621:llm:157 (§5.3 condition 1)",
+        "exposure": "delivers(ev:621:llm:157, evi:621:R) (§5.3 condition 2)",
+        "carryover": "Restatement of specific details (§5.3 condition 3). [INF] The model rounded each source value to the nearest integer and added a thousands separator; the trace does not record this rule.",
+        "specificity": "Not generic (§5.3 condition 4a). Tie rule (4b): over all 59 messages of the rendered input of llm_start 157 (thinking signatures ignored), each source value at 3-decimal precision (e.g. 1821.797) occurs only in R (message 46), and its integer form with or without thousands separator (e.g. 1822, 1,822) occurs in no other message (verified by test_semantic_fixtures).",
+        "excluded": "The next value, 5,477 (5476.77), also occurs in four other messages of llm_start 157 (msg 9 sensor_stats 01UyBt, msgs 40 and 43 the model's own grep arguments, msg 44 grep 01MQiM; 2026-10-20 trace cross-check). By the tie rule it supports no link, so S stops before it. The later values 3,173, 77 and 4,522 also occur in R; they were not checked for uniqueness and are not in S (S need only be non-empty, §5.3 condition 3)."
+      }
+    }
+  ]
+}
