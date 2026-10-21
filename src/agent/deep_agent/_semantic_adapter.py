@@ -1,6 +1,6 @@
 """Deterministic structural adapter: instrumented DeepAgents record -> agenttrace.semantic/0.3.
 
-Increment 1 of automated semantic extraction.  No model, network or database is
+Increments 1 and 2 of automated semantic extraction.  No model, network or database is
 used, and the raw record is never modified.  The output is::
 
     {"profile": ADAPTER, "semantic": {<the eight 0.3 collections>},
@@ -13,29 +13,38 @@ What is emitted (0.3 §4, §5.1):
   * events: one model call per ``llm_start``/``llm_end`` pair (joined by
     ``lc_run_id``), origin the calling agent; one tool call per
     ``tool_start``/``tool_end``(/``tool_result_committed``) set (joined by
-    ``tool_call_id``), origin the tool;
-  * evidence: each tool result (``tool_end.output``, source ``tool``) and each
+    ``tool_call_id``), origin the tool; one framework eviction per
+    ``file_write``/``tool_result_committed`` pair that passes every
+    ``eviction_event`` check, origin the framework (increment 2);
+  * evidence: each tool result (``tool_end.output``, source ``tool``), each
     top-level tool-call argument value of a model output
-    (``llm_end.message.tool_calls[j].args.<key>``, source ``agent``);
+    (``llm_end.message.tool_calls[j].args.<key>``, source ``agent``), each
+    eviction substitute (the committed tool message) and the record's question
+    (external, no producer) (increment 2);
   * ``delivers(E, X)`` only where the rendered input of model call E holds an
     occurrence of X found by a structural join plus exact equality:
 
-      - a tool message with X's ``tool_call_id`` whose content equals X;
+      - a tool message with X's ``tool_call_id`` whose content equals X (a tool
+        result, or the substitute that replaced it);
       - an AI message whose ``tool_calls`` entry has X's ``tool_call_id`` and an
         equal value under X's argument key;
       - in the input of the agent whose ``delegation_id`` is X's
-        ``tool_call_id``, a human message whose content equals X.
+        ``tool_call_id``, a human message whose content equals X;
+      - in the input of a root agent (no parent, no delegation), exactly one
+        human message equal to the question.
 
     A join that matches more than once, or not exactly, gives no link and is
     surfaced in ``profile_local.adapter.skipped``.
 
 Never emitted: claims, propositions, states, links other than ``delivers``,
-non-delivery, hierarchy, file lineage, causal or precedence relations, and
-``$unresolved`` values.  Eviction substitutes and the question/system prompt are
-deferred to increment 2 (E2/E3) and recorded as skipped items.
+non-delivery, hierarchy, file lineage, causal or precedence relations, the
+evicted file as evidence (its path is provenance only), and the system prompt
+(recorded as a skipped item).
 
 ``order`` is the seq of an event's first raw record: observation order only
-(decision E1).  It is profile-local and leaves 0.3 unchanged.
+(decision E1, viz-profile D1 rev 3).  Each event's ``raw_ref`` carries
+``start_seq``/``end_seq``; ``profile_local.order`` lists every overlapping pair.
+It is profile-local and leaves 0.3 unchanged.
 """
 
 from __future__ import annotations
@@ -49,19 +58,48 @@ from typing import Any
 from agent.deep_agent._semantic_locator import DIGEST_BASIS, digest, is_name, size
 
 ADAPTER = "agenttrace.adapter.deepagents/0.1"
-INCREMENT = 1
+INCREMENT = 2
 RAW_SCHEMA = "assetopsbench.deepagent.instrumented/0.1"
 SEMANTIC_SCHEMA = "agenttrace.semantic/0.3"
 
+ORDER_BASIS = "first_raw_seq"
 ORDER_RULE = (
-    "order = the seq of the event's first raw record (llm_start or tool_start); the seqs of all the event's "
-    "records are in raw_ref.seq. This is the order in which events were first observed by the capture."
+    "order = the seq of the event's first raw record (llm_start, tool_start or file_write); the seqs of all the "
+    "event's records are in raw_ref.seq, and raw_ref.start_seq/end_seq are their minimum and maximum. This is "
+    "the order in which events were first observed by the capture."
 )
 ORDER_CAVEAT = (
-    "Observation order only. Events whose raw seq ranges overlap (parallel tool calls issued by one model "
-    "output, a delegation tool call spanning its child's events) are listed under overlaps. Between "
-    "overlapping events, order supports no precedence, causation or reiteration relation, and no "
-    "inference may rely on it as completion or dependency order (0.3 §4.3: partial order is DEFERRED)."
+    "Observation order only. X observably precedes Y only if end_seq(X) < start_seq(Y). Events whose spans "
+    "intersect (parallel tool calls issued by one model output, a delegation tool call spanning its child's "
+    "events) are overlapping observations, listed in profile_local.order.overlaps; overlap is not evidence of "
+    "simultaneous execution. Between overlapping events, order supports no precedence, causation or "
+    "reiteration relation, and no inference may rely on it as completion or dependency order (0.3 §4.3, §12: "
+    "partial order is DEFERRED; viz-profile D1 rev 3)."
+)
+
+# Framework eviction (deepagents FilesystemMiddleware), verified in the installed source for these versions
+# only: wrap_tool_call -> _intercept_large_tool_result -> _process_large_message writes the joined text blocks
+# of the tool result to a file named by the sanitized tool_call_id, then replaces the message content with
+# TOO_LARGE_TOOL_MSG. A failed write keeps the original message. Any other version fails closed.
+EVICTION_VERIFIED_VERSIONS = ("0.5.3",)
+EVICTION_CODE = ("deepagents/middleware/filesystem.py: FilesystemMiddleware.wrap_tool_call -> "
+                 "_intercept_large_tool_result -> _process_large_message (backend write, then TOO_LARGE_TOOL_MSG)")
+EVICTION_TEMPLATE_HEAD = (
+    "Tool result too large, the result of this tool call {tool_call_id} was saved in the filesystem at this "
+    "path: {file_path}\n\nYou can read the result from the filesystem by using the read_file tool, but make "
+    "sure to only read part of the result at a time.\n\nYou can do this by specifying an offset and limit in "
+    "the read_file tool call. For example, to read the first 100 lines, you can use the read_file tool with "
+    "offset=0 and limit=100.\n\nHere is a preview showing the head and tail of the result (lines of the form "
+    "`... [N lines truncated] ...` indicate omitted lines in the middle of the content):\n\n"
+)
+EVICTION_NOTE = (
+    "One framework procedure: that file_write and tool_result_committed belong to one call of the eviction "
+    "code is an inference from that code plus the raw joins, not an observation. tool_result_committed is "
+    "emitted by the capture when the tools node finishes, so adjacency is not required. The file path is "
+    "provenance only: the evicted file is not an evidence item, and no lineage from the raw result to the "
+    "substitute or the file is stored (0.3 §5.3, §12). input_locator and file_sha256 are integrity provenance: "
+    "that the file digest equals the raw result's joined text shows content equality at most (exposure, 0.3 "
+    "§10.1), never lineage or derivation."
 )
 
 ORIGIN_NOTE = (
@@ -112,9 +150,25 @@ RULES = {
     "delegating tool call (its tool_call_id is a delegation_id): its content may originate in the child.",
     "argument_evidence": "Each top-level argument value of each llm_end tool call, source agent, produced_by "
     "the model call.",
-    "delivers": "Positive only. Structural join (tool_call_id, or delegation_id for the child's human "
-    "messages) plus exact equality: canonical JSON equal and equal capture digest. More than one "
-    "candidate occurrence, or an inexact one, gives no link.",
+    "eviction_event": "Kept only when every check holds: the framework version is one whose eviction code was "
+    "verified; one tool event of the tool_call_id with a tool_result_committed whose differs_from_raw is true, "
+    "string content and a reproducing sha256; exactly one file_write with that tool_call_id (attribution "
+    "tool_call, no error, path equal to result_path, file name equal to the sanitized tool_call_id, the only "
+    "write to that path) and the same agent_id; tool_end seq < file_write seq < committed seq; the raw result is "
+    "text only and its joined text blocks reproduce the file's sha256 and size; the committed content is the "
+    "eviction template for that tool_call_id and path followed by a non-empty preview. Origin is the framework "
+    "entity ([INF], see origin_basis). raw_ref.seq is [file_write, tool_result_committed]; the committed record "
+    "leaves the tool event. Any failed check: no event and no substitute, recorded as an eviction_substitute "
+    "skip, and the records stay where increment 1 put them.",
+    "substitute_evidence": "The committed tool message content of a kept eviction, produced_by the eviction "
+    "event, source $unresolved (framework, tool): the template is framework text and the preview is tool "
+    "content, an extractor choice.",
+    "question_evidence": "The record's question field, external evidence (no produced_by, raw_ref.external), "
+    "source $unresolved (user, benchmark): the record does not say which authored it.",
+    "delivers": "Positive only. Structural join (tool_call_id, delegation_id for the child's human messages, "
+    "or a root agent's human message for the question) plus exact equality: canonical JSON equal and equal "
+    "capture digest. More than one candidate occurrence, or an inexact one, gives no link. An exact question "
+    "match in a non-root agent's input gives no link: delivery to subagents is not inferred.",
     "digest": DIGEST_BASIS,
 }
 
@@ -123,13 +177,13 @@ NOT_EMITTED = [
     "links other than delivers: propagates_to, checks, depends_on, supported_by, contradicted_by",
     "non-delivery of any kind (0.3 §5.1, §11 r4); input coverage is not established",
     "parent/child hierarchy (DEFERRED)",
-    "file lineage: file_write and file_read records are not events in increment 1",
-    "eviction substitutes (E2, increment 2)",
-    "the question and the system prompt (E3, increment 2)",
+    "file lineage: file_read and other file_write records are not events; an eviction's file_write is part of "
+    "its eviction event, and the evicted file is not an evidence item",
+    "the system prompt (no record field holds it)",
     "model text parts and thinking blocks",
     "precedence or causal order between events",
-    "$unresolved values, except the origin of a model call whose agent origin is not established and the "
-    "source of its argument evidence",
+    "$unresolved values, except the origin of a model call whose agent origin is not established, the "
+    "source of its argument evidence, the source of eviction substitutes and the source of the question",
 ]
 
 _LABEL_TYPES = {"agent_start", "agent_end", "agent_error", "delegation_start", "delegation_end", "delegation_error"}
@@ -162,6 +216,11 @@ class _Adapter:
         self.by_seq: dict[int, dict] = {}
         self.ambiguities: list[dict] = []
         self.unresolved_events: set[str] = set()
+        self.tool_event_of: dict[str, str] = {}  # tool_call_id -> tool event id
+        self.commits: dict[str, dict] = {}  # tool_call_id -> tool_result_committed of an emitted tool event
+        self.sub_items: dict[str, dict] = {}  # tool_call_id -> substitute evidence
+        self.eviction_records: set[int] = set()  # file_write seqs inside eviction events
+        self.question_item: dict | None = None
 
     # --- helpers -----------------------------------------------------------------
 
@@ -194,8 +253,10 @@ class _Adapter:
         self._model_events(by_type["llm_start"], by_type["llm_end"])
         self._tool_events(by_type["tool_start"], by_type["tool_end"], by_type["tool_result_committed"])
         self._argument_evidence()
+        self._evictions(by_type["file_write"])
         self._other_records(records)
-        self._deferred_items()
+        self._question()
+        self._system_prompts()
         self._delivers()
         return self._output()
 
@@ -513,14 +574,11 @@ class _Adapter:
                     "sha256_basis": DIGEST_BASIS,
                 },
             }
+            self.tool_event_of[tcid] = eid
             if c is not None:
                 item["raw_ref"]["committed_seq"] = c["seq"]
                 item["raw_ref"]["committed_differs_from_raw"] = c.get("differs_from_raw")
-                if c.get("differs_from_raw") is True:
-                    self.skip("item", "eviction_substitute", [c["seq"]],
-                              "the committed tool message differs from the raw result (framework eviction); the "
-                              "substitute is not represented (E2, increment 2), and the raw result is not linked to it",
-                              tool_call_id=tcid, committed_sha256=c.get("sha256"), result=xid)
+                self.commits[tcid] = c
             if tcid in self.delegation_ids:
                 self.skip("item", "delegation_result", [e["seq"]],
                           "result of a delegating tool call: its content may first occur in the child's output, so "
@@ -586,27 +644,152 @@ class _Adapter:
             if tcid in self.issued:
                 ev["raw_ref"]["issued_at"] = self.issued[tcid]
 
+    # --- framework eviction (increment 2) ---------------------------------------------
+
+    def _evictions(self, writes: list[dict]) -> None:
+        by_call: dict[Any, list[dict]] = defaultdict(list)
+        by_path: dict[Any, int] = defaultdict(int)
+        for w in writes:
+            by_call[w.get("tool_call_id")].append(w)
+            by_path[w.get("path")] += 1
+        version = (self.rec.get("versions") or {}).get("deepagents")
+        for tcid, c in sorted(self.commits.items(), key=lambda kv: kv[1]["seq"]):
+            if c.get("differs_from_raw") is not True:
+                continue
+            tool_eid = self.tool_event_of[tcid]
+            tool_ev = self.events[tool_eid]
+            s, e = (self.by_seq[x] for x in tool_ev["raw_ref"]["seq"][:2])
+            failed: list[str] = []
+            if "framework:deepagents" not in self.entities or version not in EVICTION_VERIFIED_VERSIONS:
+                failed.append(f"framework version {version!r} is not one whose eviction code was verified")
+            content = c.get("content")
+            if not isinstance(content, str) or c.get("sha256") != digest(content):
+                failed.append("committed content is missing, not a string, or its sha256 does not reproduce")
+            cands = by_call.get(tcid, [])
+            w = cands[0] if len(cands) == 1 else None
+            if w is None:
+                failed.append(f"{len(cands)} file_write records carry this tool_call_id; exactly one is required")
+            else:
+                path = w.get("path")
+                if (w.get("attribution") != "tool_call" or w.get("error") is not None or not isinstance(path, str)
+                        or w.get("result_path") != path or by_path[path] != 1):
+                    failed.append("file_write is not an error-free tool_call write that alone names its path")
+                elif path.rsplit("/", 1)[-1] != _sanitize(tcid):
+                    failed.append("file name is not the sanitized tool_call_id")
+                if w.get("agent_id") != s.get("agent_id") or c.get("agent_id") != s.get("agent_id"):
+                    failed.append("file_write or tool_result_committed has a different agent_id from the tool call")
+                if not e["seq"] < w["seq"] < c["seq"]:
+                    failed.append("seqs are not tool_end < file_write < tool_result_committed")
+                text = _joined_text(e.get("output"))
+                if text is None:
+                    failed.append("raw result is not text only")
+                elif _sha_text(text) != w.get("sha256") or len(text) != w.get("size"):
+                    failed.append("joined text of the raw result does not reproduce the file's sha256 and size")
+                if isinstance(path, str) and isinstance(content, str):
+                    head = EVICTION_TEMPLATE_HEAD.format(tool_call_id=tcid, file_path=path)
+                    if not content.startswith(head) or not content.endswith("\n") or len(content) <= len(head) + 1:
+                        failed.append("committed content is not the eviction template for this call and path")
+            if failed:
+                self.skip("item", "eviction_substitute", [c["seq"]],
+                          "committed tool message differs from the raw result, but the eviction is not established: "
+                          + "; ".join(failed) + ". No eviction event or substitute is emitted (fail closed)",
+                          tool_call_id=tcid, committed_sha256=c.get("sha256"))
+                continue
+            tool_ev["raw_ref"]["seq"] = [x for x in tool_ev["raw_ref"]["seq"] if x != c["seq"]]
+            eid = f"ev:evict:{w['seq']}"
+            self.events[eid] = {
+                "id": eid,
+                "origin": "framework:deepagents",
+                "order": w["seq"],
+                "raw_ref": {
+                    "seq": [w["seq"], c["seq"]],
+                    "tool_call_id": tcid,
+                    "agent_context": s.get("agent_id"),
+                    "input_locator": f"events[seq={e['seq']}].output",
+                    "output_locator": f"events[seq={c['seq']}].content",
+                    "file_path": path,
+                    "file_path_status": "provenance only; the file is not an evidence item",
+                    "file_sha256": w.get("sha256"),
+                    "file_size": w.get("size"),
+                    "origin_basis": {
+                        "label": "[INF]",
+                        "rule": "eviction_event",
+                        "code": EVICTION_CODE,
+                        "code_version": version,
+                        "checks": {"version_verified": True, "single_file_write": True, "path_is_sanitized_call_id": True,
+                                   "seq_order": True, "file_digest_reproduces": True, "template_matches": True},
+                        "raw_refs": {"file_write_locator": f"events[seq={w['seq']}]",
+                                     "committed_locator": f"events[seq={c['seq']}]",
+                                     "tool_end_locator": f"events[seq={e['seq']}]"},
+                        "note": EVICTION_NOTE,
+                    },
+                },
+            }
+            self.eviction_records.add(w["seq"])
+            xid = f"evi:evict_sub:{c['seq']}"
+            source = self._ambiguity(
+                f"amb:source:{xid}", f"semantic.evidence[{xid}].source", ["framework", "tool"],
+                "eviction substitute: the template text is framework-authored and the preview is tool content, so "
+                "one author class is not established",
+                {"seq": c["seq"], "locator": f"events[seq={c['seq']}].content"}, basis="INF",
+            )
+            item = {
+                "id": xid,
+                "source": source,
+                "produced_by": eid,
+                "raw_ref": {
+                    "seq": c["seq"],
+                    "locator": f"events[seq={c['seq']}].content",
+                    "tool_call_id": tcid,
+                    "sha256": digest(content),
+                    "size": size(content),
+                    "sha256_basis": DIGEST_BASIS,
+                },
+            }
+            self.evidence[xid] = item
+            self.sub_items[tcid] = item
+
     def _other_records(self, records: list[dict]) -> None:
         labels = sorted(r["seq"] for r in records if r.get("type") in _LABEL_TYPES)
         if labels:
             self.skip("record", "framework_label", labels,
                       "lifecycle labels (agent/delegation start, end, error) stay in raw data; framework labels are "
                       "never semantic structure (0.3 §11 r9)")
-        files = sorted(r["seq"] for r in records if r.get("type") in _FILE_TYPES)
+        files = sorted(r["seq"] for r in records if r.get("type") in _FILE_TYPES and r["seq"] not in self.eviction_records)
         if files:
             self.skip("record", "file_record", files,
-                      "file_write/file_read records are not represented in increment 1; no file lineage is stored")
+                      "file_write/file_read records outside an eviction event are not represented; no file lineage "
+                      "is stored")
         known = {"llm_start", "llm_end", "tool_start", "tool_end", "tool_result_committed"} | _LABEL_TYPES | _FILE_TYPES
         other = sorted(r["seq"] for r in records if r.get("type") not in known)
         if other:
             self.skip("record", "unknown_record_type", other, "raw record type not handled by the adapter")
 
-    def _deferred_items(self) -> None:
+    def _question(self) -> None:
         q = self.rec.get("question")
-        if q is not None:
-            self.skip("item", "question", [],
-                      "the record's question field is not represented (E3, increment 2); no source or delivery is asserted",
-                      locator="question", sha256=digest(q), size=size(q))
+        if q is None:
+            return
+        xid = "evi:question"
+        source = self._ambiguity(
+            f"amb:source:{xid}", f"semantic.evidence[{xid}].source", ["user", "benchmark"],
+            "the record's question field does not say whether a user or the benchmark authored it",
+            {"locator": "question"}, basis="INF",
+        )
+        self.question_item = {
+            "id": xid,
+            "source": source,
+            "raw_ref": {
+                "external": True,
+                "locator": "question",
+                "note": "External evidence: no event in the trace outputs it (0.3 §4.4).",
+                "sha256": digest(q),
+                "size": size(q),
+                "sha256_basis": DIGEST_BASIS,
+            },
+        }
+        self.evidence[xid] = self.question_item
+
+    def _system_prompts(self) -> None:
         seen: dict[tuple[str, str], int] = {}
         for eid, s in self.model_start.items():
             batches = s.get("input_batches")
@@ -619,7 +802,7 @@ class _Adapter:
         for (aid, sha), first in sorted(seen.items(), key=lambda kv: kv[1]):
             self.skip("item", "system_prompt", [],
                       "system message seen in rendered inputs; no record field holds it, so it is not represented "
-                      "(E3, increment 2)", agent_id=aid, sha256=sha, first_input_seq=first)
+                      "(E3)", agent_id=aid, sha256=sha, first_input_seq=first)
 
     # --- delivers --------------------------------------------------------------------
 
@@ -683,11 +866,19 @@ class _Adapter:
             m = idxs[0]
             content = msgs[m].get("content")
             out = self._raw_output(item)
+            sub = self.sub_items.get(tcid)
+            commit = self.commits.get(tcid)
             if _same(content, out):
                 self._link(eid, item, f"{base}[{m}].content", {"tool_call_id": tcid})
-            elif self._substitute(item) is None or not _same(content, self._substitute(item)):
+            elif sub is not None and _same(content, self.by_seq[sub["raw_ref"]["seq"]]["content"]):
+                self._link(eid, sub, f"{base}[{m}].content", {"tool_call_id": tcid})
+            elif commit is not None and commit.get("differs_from_raw") is True and _same(content, commit.get("content")):
+                self.skip("join", "eviction_substitute_unrepresented", [seq],
+                          "tool message equals a committed substitute whose eviction is not established; no link",
+                          tool_call_id=tcid, message=m)
+            else:
                 self.skip("join", "content_mismatch", [seq],
-                          "tool message joined by tool_call_id is not exactly equal to the raw result",
+                          "tool message joined by tool_call_id is not exactly equal to the raw result or substitute",
                           tool_call_id=tcid, target=item["id"], message=m)
 
         # Tool-call arguments, in the issuing agent's later inputs.
@@ -711,8 +902,24 @@ class _Adapter:
                               "AI tool_calls entry joined by id does not hold an exactly equal argument value",
                               tool_call_id=tcid, target=item["id"], message=m)
 
-        # Delegation: the child's human messages against the delegating call's arguments.
+        # The question, in a root agent's input only.
         aid = s.get("agent_id")
+        if self.question_item is not None:
+            q = self.rec.get("question")
+            matches = [m for m in human if _same(msgs[m].get("content"), q)]
+            agent = self.agents[aid]
+            if matches and (agent.get("parent_agent_id") is not None or agent.get("delegation_id") is not None):
+                self.skip("join", "question_in_non_root_input", [seq],
+                          "a human message equals the question in a non-root agent's input; delivery to subagents is "
+                          "not inferred", messages=matches)
+            elif len(matches) > 1:
+                self.skip("join", "ambiguous_join", [seq], "more than one human message equals the question",
+                          target=self.question_item["id"], messages=matches)
+            elif matches:
+                self._link(eid, self.question_item, f"{base}[{matches[0]}].content",
+                           {"external": "question", "role": "human", "agent_scope": "root"})
+
+        # Delegation: the child's human messages against the delegating call's arguments.
         dele = self.agents[aid].get("delegation_id")
         if dele is None or not self.arg_items.get(dele) or not self._delegation_consistent(aid, dele):
             return
@@ -743,29 +950,25 @@ class _Adapter:
     def _raw_output(self, item: dict) -> Any:
         return self.by_seq[item["raw_ref"]["seq"]]["output"]
 
-    def _substitute(self, item: dict) -> Any:
-        ref = item["raw_ref"]
-        if ref.get("committed_differs_from_raw") is not True:
-            return None
-        return self.by_seq[ref["committed_seq"]].get("content")
-
     def _raw_argument(self, item: dict) -> Any:
         ref = item["raw_ref"]
         return self.by_seq[ref["seq"]]["message"]["tool_calls"][ref["index"]]["args"][ref["argument"]]
 
     # --- output ------------------------------------------------------------------------
 
-    def _overlaps(self) -> list[dict]:
-        spans = sorted((min(e["raw_ref"]["seq"]), max(e["raw_ref"]["seq"]), eid) for eid, e in self.events.items())
+    def _overlaps(self) -> list[list[str]]:
+        """Every pair of events whose [start_seq, end_seq] spans intersect, in (start, start) order."""
+        spans = sorted((e["raw_ref"]["start_seq"], e["raw_ref"]["end_seq"], eid) for eid, e in self.events.items())
         out = []
         for i, (lo, hi, eid) in enumerate(spans):
-            later = [other for (lo2, _, other) in spans[i + 1:] if lo2 <= hi]
-            if later:
-                out.append({"event": eid, "overlapped_by": later})
+            out.extend([eid, other] for (lo2, _, other) in spans[i + 1:] if lo2 <= hi)
         return out
 
     def _output(self) -> dict:
         rec = self.rec
+        for e in self.events.values():
+            e["raw_ref"]["start_seq"] = min(e["raw_ref"]["seq"])
+            e["raw_ref"]["end_seq"] = max(e["raw_ref"]["seq"])
         has_input = any("input_batches" in r for r in rec["events"] if r.get("type") == "llm_start")
         has_offered = any("offered_tools" in r for r in rec["events"] if r.get("type") == "llm_start")
         run_ref = {
@@ -786,7 +989,7 @@ class _Adapter:
             },
             "entities": sorted(self.entities.values(), key=lambda x: x["id"]),
             "events": sorted(self.events.values(), key=lambda x: x["order"]),
-            "evidence": sorted(self.evidence.values(), key=lambda x: (x["raw_ref"]["seq"], x["id"])),
+            "evidence": sorted(self.evidence.values(), key=lambda x: (x["raw_ref"].get("seq", -1), x["id"])),
             "claims": [],
             "propositions": [],
             "states": [],
@@ -803,7 +1006,7 @@ class _Adapter:
             "delivery_telemetry": "present" if has_input else "absent",
             "offered_tools_telemetry": "present" if has_offered else "absent",
             "telemetry_limits": self._limits(has_input, has_offered),
-            "order": {"rule": ORDER_RULE, "caveat": ORDER_CAVEAT, "overlaps": self._overlaps()},
+            "order": {"rule": ORDER_RULE, "caveat": ORDER_CAVEAT, "see": "profile_local.order"},
             "rules": RULES,
             "not_emitted": NOT_EMITTED,
             "unresolved": [a["id"] for a in self.ambiguities],
@@ -814,20 +1017,24 @@ class _Adapter:
                 "evidence": len(self.evidence),
                 "delivers": len(self.links),
                 "unresolved_origin_events": len(self.unresolved_events),
+                "eviction_events": len(self.sub_items),
                 "skipped_by_kind": dict(sorted(kinds.items())),
             },
         }
         conformance = {"canonical_complete": not self.ambiguities,
                        "unresolved": [a["field_path"] for a in self.ambiguities]}
+        order = {"basis": ORDER_BASIS, "caveat": ORDER_CAVEAT, "overlaps": self._overlaps()}
         return {"profile": ADAPTER, "semantic": semantic,
-                "profile_local": {"adapter": adapter, "ambiguities": self.ambiguities, "conformance": conformance}}
+                "profile_local": {"adapter": adapter, "order": order, "ambiguities": self.ambiguities,
+                                  "conformance": conformance}}
 
     @staticmethod
     def _limits(has_input: bool, has_offered: bool) -> list[str]:
         out = [
             "Input coverage is not established for any event: every absent delivers link means UNKNOWN, never "
             "non-delivery.",
-            "Delivery is checked only for the emitted item kinds (tool results and tool-call arguments).",
+            "Delivery is checked only for the emitted item kinds (tool results, eviction substitutes, tool-call "
+            "arguments and the question in root inputs).",
         ]
         if not has_input:
             out.append("No llm_start carries a rendered input (input_batches): no delivery can be observed in this run.")
@@ -837,6 +1044,26 @@ class _Adapter:
                        "an unresolved origin. A framework call that reproduced the agent's exact "
                        "conversation state would pass, and cannot be excluded from this telemetry.")
         return out
+
+
+def _sanitize(tool_call_id: Any) -> str:
+    """The eviction code's file name for a tool_call_id (deepagents backends.utils.sanitize_tool_call_id)."""
+    return str(tool_call_id).replace(".", "_").replace("/", "_").replace("\\", "_")
+
+
+def _joined_text(output: Any) -> str | None:
+    """The text the eviction code writes: the string, or the text blocks joined by newlines; None otherwise."""
+    if isinstance(output, str):
+        return output
+    if isinstance(output, list) and output and all(
+        isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str) for b in output
+    ):
+        return "\n".join(b["text"] for b in output)
+    return None
+
+
+def _sha_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def adapt(record: dict, *, trace_ref: str, trace_sha256: str) -> dict:

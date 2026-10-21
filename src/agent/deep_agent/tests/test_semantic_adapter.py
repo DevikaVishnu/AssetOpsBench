@@ -1,4 +1,4 @@
-"""Tests for the increment-1 structural adapter and its independent verifier.
+"""Tests for the structural adapter (increments 1 and 2) and its independent verifier.
 
 The adapter (``_semantic_adapter``) turns an instrumented AssetOpsBench
 DeepAgents record into an agenttrace.semantic/0.3 slice with entities, model
@@ -109,18 +109,20 @@ def test_verifier_accepts_adapter_output(key, raw, docs):
 
 
 @pytest.mark.parametrize("key", list(RUNS))
-def test_output_is_increment_1_only(key, docs):
+def test_output_is_structural_only(key, docs):
     doc = docs[key]
     sem = doc["semantic"]
     assert set(sem) == {"run", "entities", "events", "evidence", "claims", "propositions", "states", "links"}
     assert sem["claims"] == [] and sem["propositions"] == [] and sem["states"] == []
     assert {l["relation"] for l in sem["links"]} <= {"delivers"}
-    # $unresolved only on unresolved-origin model calls and their argument evidence
+    # $unresolved only on unresolved-origin model calls, their argument evidence, substitutes and the question
     n_unres = json.dumps(sem).count('"$unresolved"')
     n_expected = sum(1 for e in sem["events"] if isinstance(e["origin"], dict)) + sum(
         1 for x in sem["evidence"] if isinstance(x["source"], dict))
     assert n_unres == n_expected
-    assert (n_unres == 0) is (key in ("620f", "621"))
+    if key in ("620f", "621"):  # every model call is established: only substitutes and the question are unresolved
+        unresolved = [x for x in sem["evidence"] if isinstance(x["source"], dict)]
+        assert {x["id"].split(":")[1] for x in unresolved} == {"question", "evict_sub"}
     assert sem["run"]["outputs"] == "UNKNOWN"
     orders = [e["order"] for e in sem["events"]]
     assert all(isinstance(o, int) for o in orders) and len(set(orders)) == len(orders)
@@ -252,14 +254,16 @@ def test_sc3_irregularities_surfaced(docs):
     assert isinstance(ev383["origin"], dict) and ev383["raw_ref"]["origin_basis"]["rule"] == "offered_tools_null"
     # 416 has an input and no output.
     assert skipped_seqs.get(416) == "model_call_unpaired"
-    # Evictions: committed content differs from the raw result (E2 deferred).
-    assert len(_skipped(doc, "eviction_substitute")) == 6
-    assert _skipped(doc, "question") and _skipped(doc, "system_prompt")
+    # Evictions: all six are represented (increment 2); the question is evidence, the system prompt a skip.
+    assert _skipped(doc, "eviction_substitute") == []
+    assert len([e for e in doc["semantic"]["events"] if e["origin"] == "framework:deepagents"]) == 6
+    assert _skipped(doc, "question") == [] and "evi:question" in _ids(doc, "evidence")
+    assert _skipped(doc, "system_prompt")
 
 
 def test_621_eviction_results_have_no_delivers_and_stay_unknown(docs):
     doc = docs["621"]
-    evicted = {s["tool_call_id"] for s in _skipped(doc, "eviction_substitute")}
+    evicted = {e["raw_ref"]["tool_call_id"] for e in doc["semantic"]["events"] if e["origin"] == "framework:deepagents"}
     assert len(evicted) == 3
     items = [e["id"] for e in doc["semantic"]["evidence"] if e["raw_ref"].get("tool_call_id") in evicted and e["source"] == "tool"]
     assert len(items) == 3
@@ -295,14 +299,27 @@ def test_order_is_first_raw_seq_with_caveat(key, docs):
 
 
 def test_overlapping_siblings_recorded(docs):
-    overlaps = docs["sc3"]["profile_local"]["adapter"]["order"]["overlaps"]
+    order = docs["sc3"]["profile_local"]["order"]
+    assert order["basis"] == "first_raw_seq" and "simultaneous" in order["caveat"]
+    overlaps = order["overlaps"]
     assert overlaps
     events = _ids(docs["sc3"], "events")
-    for o in overlaps:
-        a = events[o["event"]]["raw_ref"]["seq"]
-        for b_id in o["overlapped_by"]:
-            b = events[b_id]["raw_ref"]["seq"]
-            assert a[0] < b[0] <= max(a)
+    for a_id, b_id in overlaps:
+        a, b = events[a_id]["raw_ref"], events[b_id]["raw_ref"]
+        assert a["start_seq"] < b["start_seq"] <= a["end_seq"]
+
+
+@pytest.mark.parametrize("key", list(RUNS))
+def test_events_carry_start_and_end_seq(key, docs):
+    """D1 rev 3: spans in raw_ref; every intersecting pair, and only those, is listed."""
+    events = docs[key]["semantic"]["events"]
+    for e in events:
+        assert e["raw_ref"]["start_seq"] == e["order"] == min(e["raw_ref"]["seq"])
+        assert e["raw_ref"]["end_seq"] == max(e["raw_ref"]["seq"])
+    spans = {e["id"]: (e["raw_ref"]["start_seq"], e["raw_ref"]["end_seq"]) for e in events}
+    expected = {tuple(sorted((a, b), key=lambda x: spans[x][0])) for a in spans for b in spans
+                if a != b and spans[a][0] < spans[b][0] <= spans[a][1]}
+    assert {tuple(p) for p in docs[key]["profile_local"]["order"]["overlaps"]} == expected
 
 
 # --- generality: no run constants; renaming IDs and seqs changes nothing ----------
@@ -343,10 +360,27 @@ def _rename(rec: dict, offset: int) -> dict:
         d["delegation_id"] = call(d["delegation_id"])
         d["parent_agent_id"] = agent.get(d.get("parent_agent_id"))
         d["subagent_agent_id"] = agent.get(d.get("subagent_agent_id"))
+    old_ids = {e["tool_call_id"] for e in rec["events"] if e.get("tool_call_id")}
+
+    def text(x):
+        """Rewrite tool-call ids inside eviction paths and substitutes (the framework names files by them)."""
+        if not isinstance(x, str):
+            return x
+        for old in sorted(old_ids, key=len, reverse=True):
+            if old in x:
+                x = x.replace(old, call(old))
+        return x
+
     for e in rec["events"]:
         e["seq"] += offset
         if e.get("agent_id") is not None:
             e["agent_id"] = agent[e["agent_id"]]
+        for k in ("path", "result_path"):
+            if k in e:
+                e[k] = text(e[k])
+        if e.get("type") == "tool_result_committed" and "content" in e:
+            e["content"] = text(e["content"])
+            e["sha256"] = hashlib.sha256(e["content"].encode()).hexdigest()
         for k in ("tool_call_id", "delegation_id"):
             if k in e:
                 e[k] = call(e[k])
@@ -357,6 +391,8 @@ def _rename(rec: dict, offset: int) -> dict:
             tc["id"] = call(tc["id"])
         for batch in e.get("input_batches") or []:
             for msg in batch:
+                if msg.get("role") == "tool" and isinstance(msg.get("content"), str) and msg["content"].startswith("Tool result too large"):
+                    msg["content"] = text(msg["content"])
                 if "tool_call_id" in msg:
                     msg["tool_call_id"] = call(msg["tool_call_id"])
                 for tc in msg.get("tool_calls") or []:
@@ -372,10 +408,14 @@ def _shape(doc: dict) -> dict:
     kinds = {e["id"]: (e["kind"], e.get("role")) for e in sem["entities"]}
     ev_shape = [(("unresolved", len(e["origin"]["candidates"])) if isinstance(e["origin"], dict) else kinds[e["origin"]],
                  len(e["raw_ref"]["seq"])) for e in events]
-    evidence = sorted(sem["evidence"], key=lambda x: (rank[x["produced_by"]], x["raw_ref"]["sha256"], x["raw_ref"]["locator"].split(".")[-1]))
+    rank_of = lambda x: rank[x["produced_by"]] if "produced_by" in x else -1  # noqa: E731
+    evidence = sorted(sem["evidence"], key=lambda x: (rank_of(x), x["raw_ref"]["sha256"], x["raw_ref"]["locator"].split(".")[-1]))
     erank = {x["id"]: i for i, x in enumerate(evidence)}
-    evi_shape = [(json.dumps(x["source"]) if not isinstance(x["source"], dict) else "unresolved", rank[x["produced_by"]],
-                  x["raw_ref"]["sha256"], x["raw_ref"]["size"]) for x in evidence]
+    # substitutes embed the tool_call_id and path, so their digest and size change with renaming
+    sub = lambda x: x["id"].startswith("evi:evict_sub:")  # noqa: E731
+    evi_shape = [(json.dumps(x["source"]) if not isinstance(x["source"], dict) else "unresolved", rank_of(x),
+                  "substitute" if sub(x) else x["raw_ref"]["sha256"], None if sub(x) else x["raw_ref"]["size"])
+                 for x in evidence]
     links = sorted((rank[l["source"]], erank[l["target"]], bool(l["raw_ref"]["join"].get("delegation_id"))) for l in sem["links"])
     pl = doc["profile_local"]["adapter"]
     skipped = sorted((s["kind"], len(s["seq"])) for s in pl["skipped"])
@@ -653,7 +693,7 @@ def test_delivery_links_unchanged_by_the_signature_rule(raw, docs):
         if key in ("621", "620f"):
             assert len(_fixture_pairs(json.loads(path.read_text(encoding="utf-8")).get("semantic", json.loads(path.read_text(encoding="utf-8"))))) == n
     for key, expected in (("620f", 172), ("621", 1376)):
-        assert len(_delivers(docs[key])) == expected
+        assert len(_increment_1_links(docs[key])) == expected
 
 
 def _unresolved_orders(doc: dict) -> set:
@@ -800,7 +840,7 @@ def test_no_input_model_calls_kept_with_unresolved_origin(key, raw, docs):
         assert e["raw_ref"]["origin_basis"]["label"] == "UNRESOLVED"
         assert resolve(rec, e["raw_ref"]["origin_basis"]["raw_refs"]["agent_id_locator"]) == e["raw_ref"]["raw_agent_id"]
         assert e["order"] == e["raw_ref"]["seq"][0]
-    args = [x for x in sem["evidence"] if isinstance(x["source"], dict)]
+    args = [x for x in sem["evidence"] if isinstance(x["source"], dict) and "produced_by" in x]
     assert len(args) == n_args > 0
     for x in args:
         assert x["source"]["candidates"] == ["agent", "framework"]
@@ -811,7 +851,7 @@ def test_no_input_model_calls_kept_with_unresolved_origin(key, raw, docs):
     assert _delivers(doc) == []
     assert _skipped(doc, "model_call_origin_unresolved") == []
     ambs = pl["ambiguities"]
-    assert len(ambs) == len(model) + len(args) == len(pl["adapter"]["unresolved"])
+    assert len(ambs) == len(model) + len(args) + 1 == len(pl["adapter"]["unresolved"])  # + the question
     assert pl["conformance"] == {"canonical_complete": False, "unresolved": [a["field_path"] for a in ambs]}
     assert pl["adapter"]["delivery_telemetry"] == "absent"
     assert verifier.verify(doc, rec, trace_sha256=sha) == []
@@ -835,16 +875,26 @@ BASELINE_LINKS = {  # recorded before the no-input correction
 }
 
 
+def _increment_1_links(doc: dict) -> list[dict]:
+    return [l for l in _delivers(doc) if l["target"].startswith(("evi:tool_result:", "evi:tool_arg:"))]
+
+
 @pytest.mark.parametrize("key", WITH_INPUT)
 def test_input_run_deliveries_unchanged(key, docs):
+    """Increment 2 adds links only to substitutes and the question; the increment-1 links are byte-identical."""
     sem = docs[key]["semantic"]
     ev = {e["id"]: e for e in sem["events"]}
     evi = {e["id"]: e for e in sem["evidence"]}
     rows = sorted(json.dumps([ev[l["source"]]["order"], evi[l["target"]]["raw_ref"]["locator"],
-                              evi[l["target"]]["raw_ref"]["sha256"], l["raw_ref"]["locator"]]) for l in sem["links"])
+                              evi[l["target"]]["raw_ref"]["sha256"], l["raw_ref"]["locator"]]) for l in _increment_1_links(docs[key]))
     assert (len(rows), _sha256("\n".join(rows).encode())) == BASELINE_LINKS[key]
-    expected = [] if key != "sc3" else ["semantic.events[ev:llm:383].origin"]
-    assert docs[key]["profile_local"]["conformance"] == {"canonical_complete": not expected, "unresolved": expected}
+    new = [l for l in sem["links"] if l not in _increment_1_links(docs[key])]
+    assert new and all(l["target"] == "evi:question" or l["target"].startswith("evi:evict_sub:") for l in new)
+    expected = ["semantic.events[ev:llm:383].origin"] if key == "sc3" else []
+    expected += sorted(f"semantic.evidence[{x['id']}].source" for x in sem["evidence"]
+                       if x["id"].startswith("evi:evict_sub:")) + ["semantic.evidence[evi:question].source"]
+    conf = docs[key]["profile_local"]["conformance"]
+    assert conf["canonical_complete"] is False and sorted(conf["unresolved"]) == sorted(expected)
 
 
 def test_verifier_rejects_misused_unresolved_origin(raw, docs):
@@ -860,7 +910,7 @@ def test_verifier_requires_no_input_calls_preserved(raw, docs):
     doc = copy.deepcopy(docs["607"])
     victim = next(e for e in doc["semantic"]["events"] if isinstance(e["origin"], dict))
     doc["semantic"]["events"].remove(victim)
-    doc["semantic"]["evidence"] = [x for x in doc["semantic"]["evidence"] if x["produced_by"] != victim["id"]]
+    doc["semantic"]["evidence"] = [x for x in doc["semantic"]["evidence"] if x.get("produced_by") != victim["id"]]
     errors = verifier.verify(doc, rec, trace_sha256=sha)
     assert any("not preserved" in e for e in errors)
 
@@ -892,9 +942,9 @@ def test_sc3_summarizer_383_kept_with_unresolved_origin(raw, docs):
     amb = _ambiguity_for(doc, 383)
     assert amb["reason"].startswith("offered_tools_null") and amb["candidates"] == ev["origin"]["candidates"]
     assert not [l for l in _delivers(doc) if l["source"] == ev["id"]]
-    assert not [x for x in doc["semantic"]["evidence"] if x["produced_by"] == ev["id"]]  # 383 issued no tool calls
+    assert not [x for x in doc["semantic"]["evidence"] if x.get("produced_by") == ev["id"]]  # 383 issued no tool calls
     comp = Comparator(doc["semantic"], doc["profile_local"])
-    item = doc["semantic"]["evidence"][0]["id"]
+    item = next(x["id"] for x in doc["semantic"]["evidence"] if "produced_by" in x)
     assert comp.exposure_at(ev["id"], item)["whole_item"] == "UNRESOLVED"
     assert verifier.verify(doc, rec, trace_sha256=sha) == []
 
@@ -934,3 +984,247 @@ def test_verifier_rejects_wrong_unresolved_metadata(change, raw, docs):
 def test_no_origin_unresolved_skips_remain(docs):
     for key in RUNS:
         assert _skipped(docs[key], "model_call_origin_unresolved") == []
+
+
+# --- increment 2: framework eviction events and substitutes -----------------------------
+
+
+def _raw_evictions(rec: dict) -> list[tuple[str, int, int]]:
+    """(tool_call_id, file_write seq, committed seq) per eviction, from raw records only."""
+    writes = {e["tool_call_id"]: e["seq"] for e in rec["events"] if e["type"] == "file_write"}
+    return sorted((c["tool_call_id"], writes[c["tool_call_id"]], c["seq"]) for c in rec["events"]
+                  if c["type"] == "tool_result_committed" and c.get("differs_from_raw") is True)
+
+
+def _raw_substitute_hits(rec: dict) -> int:
+    """Rendered tool messages exactly equal to a committed substitute, counted from raw records only."""
+    subs = {c["tool_call_id"]: c["content"] for c in rec["events"]
+            if c["type"] == "tool_result_committed" and c.get("differs_from_raw") is True}
+    n = 0
+    for e in rec["events"]:
+        for msg in (e.get("input_batches") or [[]])[0] if e["type"] == "llm_start" else []:
+            if msg.get("role") == "tool" and msg.get("tool_call_id") in subs and msg.get("content") == subs[msg["tool_call_id"]]:
+                n += 1
+    return n
+
+
+EVICTIONS = {"620f": 1, "621": 3, "sc3": 6}
+SUBSTITUTE_LINKS = {"620f": 4, "621": 54, "sc3": 153}  # 211 rendered messages; one per (model call, substitute)
+
+
+@pytest.mark.parametrize("key", WITH_INPUT)
+def test_eviction_events_match_raw_records(key, raw, docs):
+    rec, _ = raw[key]
+    doc = docs[key]
+    evs = {e["raw_ref"]["tool_call_id"]: e for e in doc["semantic"]["events"] if e["origin"] == "framework:deepagents"}
+    expected = _raw_evictions(rec)
+    assert len(expected) == len(evs) == EVICTIONS[key]
+    by_seq = {r["seq"]: r for r in rec["events"]}
+    tools = {e["raw_ref"]["tool_call_id"]: e for e in doc["semantic"]["events"]
+             if isinstance(e["origin"], str) and e["origin"].startswith("tool:")}
+    for tcid, w, c in expected:
+        ev = evs[tcid]
+        assert ev["raw_ref"]["seq"] == [w, c] and ev["order"] == w
+        assert ev["raw_ref"]["file_path"] == by_seq[w]["path"] and "provenance only" in ev["raw_ref"]["file_path_status"]
+        basis = ev["raw_ref"]["origin_basis"]
+        assert basis["label"] == "[INF]" and basis["rule"] == "eviction_event" and "inference" in basis["note"]
+        assert c not in tools[tcid]["raw_ref"]["seq"]  # the committed record moved to the eviction event
+        sub = _ids(doc, "evidence")[f"evi:evict_sub:{c}"]
+        assert sub["produced_by"] == ev["id"] and sub["source"]["candidates"] == ["framework", "tool"]
+        assert resolve(rec, sub["raw_ref"]["locator"]) == by_seq[c]["content"]
+    # the evicted file is not an evidence item, and no link other than delivers exists
+    writes = {r["seq"] for r in rec["events"] if r["type"] == "file_write"}
+    assert not [x for x in doc["semantic"]["evidence"] if x["raw_ref"].get("seq") in writes]
+    assert {l["relation"] for l in doc["semantic"]["links"]} == {"delivers"}
+    assert _skipped(doc, "eviction_substitute") == []
+
+
+@pytest.mark.parametrize("key", WITH_INPUT)
+def test_substitute_deliveries_are_exact_matches(key, raw, docs):
+    rec, _ = raw[key]
+    doc = docs[key]
+    links = [l for l in _delivers(doc) if l["target"].startswith("evi:evict_sub:")]
+    assert len(links) == _raw_substitute_hits(rec) == SUBSTITUTE_LINKS[key]
+    events = _ids(doc, "events")
+    for l in links:
+        assert events[l["source"]]["origin"].startswith("agent:") and l["raw_ref"]["match"] == "exact"
+        assert set(l["raw_ref"]["join"]) == {"tool_call_id"}
+    assert len({(l["source"], l["target"]) for l in links}) == len(links)
+    assert _skipped(doc, "eviction_substitute_unrepresented") == [] and _skipped(doc, "content_mismatch") == []
+
+
+def test_substitute_total_is_211(docs):
+    assert sum(len([l for l in _delivers(docs[k]) if l["target"].startswith("evi:evict_sub:")]) for k in WITH_INPUT) == 211
+
+
+def _first_eviction(rec: dict) -> tuple[dict, dict, dict]:
+    tcid, w, c = _raw_evictions(rec)[0]
+    by_seq = {r["seq"]: r for r in rec["events"]}
+    end = next(e for e in rec["events"] if e["type"] == "tool_end" and e["tool_call_id"] == tcid)
+    return by_seq[w], by_seq[c], end
+
+
+def _break_eviction(rec: dict, how: str) -> dict:
+    rec = copy.deepcopy(rec)
+    w, c, end = _first_eviction(rec)
+    if how == "version":
+        rec["versions"]["deepagents"] = "9.9.9"
+    elif how == "file_sha":
+        w["sha256"] = "0" * 64
+    elif how == "file_name":
+        w["path"] = w["result_path"] = w["path"] + "x"
+    elif how == "no_file_write":
+        rec["events"].remove(w)
+    elif how == "second_write":
+        rec["events"].append({**w, "seq": max(e["seq"] for e in rec["events"]) + 1})
+    elif how == "write_error":
+        w["error"] = "denied"
+    elif how == "template":
+        c["content"] = c["content"].replace("Tool result too large", "Tool output too big", 1)
+        c["sha256"] = hashlib.sha256(c["content"].encode()).hexdigest()
+    elif how == "write_after_commit":
+        w["seq"] = max(e["seq"] for e in rec["events"]) + 1
+    elif how == "non_text_result":
+        end["output"] = end["output"] + [{"type": "image", "url": "x"}]
+        end["output_sha256"] = hashlib.sha256(json.dumps(end["output"], default=str).encode()).hexdigest()
+    return rec
+
+
+@pytest.mark.parametrize("how", ["version", "file_sha", "file_name", "no_file_write", "second_write", "write_error",
+                                 "template", "write_after_commit", "non_text_result"])
+def test_eviction_fails_closed(how, raw):
+    base, sha = raw["621"]
+    tcid = _raw_evictions(base)[0][0]
+    rec = _break_eviction(base, how)
+    doc = adapter.adapt(rec, trace_ref="x", trace_sha256=sha)
+    assert verifier.verify(doc, rec, trace_sha256=sha) == []
+    evs = [e for e in doc["semantic"]["events"] if e["origin"] == "framework:deepagents"]
+    assert tcid not in {e["raw_ref"]["tool_call_id"] for e in evs}
+    assert any(s["tool_call_id"] == tcid for s in _skipped(doc, "eviction_substitute"))
+    assert not [x for x in doc["semantic"]["evidence"] if x["id"].startswith("evi:evict_sub:") and x["raw_ref"]["tool_call_id"] == tcid]
+    assert not [l for l in _delivers(doc) if l["raw_ref"]["join"].get("tool_call_id") == tcid and l["target"].startswith("evi:evict_sub:")]
+    tool = next(e for e in doc["semantic"]["events"] if e["raw_ref"].get("tool_call_id") == tcid and e["origin"].startswith("tool:"))
+    assert len(tool["raw_ref"]["seq"]) == 3  # the committed record stays with the tool call
+    if how not in ("version",):
+        assert len(evs) == 2  # the other evictions are unaffected
+
+
+def test_eviction_does_not_require_adjacency(raw):
+    rec, sha = raw["621"]
+    rec = copy.deepcopy(rec)
+    _, c, _ = _first_eviction(rec)
+    c["seq"] = max(e["seq"] for e in rec["events"]) + 1  # committed record observed much later
+    doc = adapter.adapt(rec, trace_ref="x", trace_sha256=sha)
+    assert verifier.verify(doc, rec, trace_sha256=sha) == []
+    assert len([e for e in doc["semantic"]["events"] if e["origin"] == "framework:deepagents"]) == 3
+
+
+# --- increment 2: the question -------------------------------------------------------
+
+
+def _raw_root_question_hits(rec: dict, established: set) -> int:
+    roots = {a["agent_id"] for a in rec["agents"] if a.get("parent_agent_id") is None and a.get("delegation_id") is None}
+    n = 0
+    for e in rec["events"]:
+        if e["type"] != "llm_start" or e["agent_id"] not in roots or e["seq"] not in established or "input_batches" not in e:
+            continue
+        hits = [m for m in e["input_batches"][0] if m.get("role") == "human" and m.get("content") == rec["question"]]
+        n += len(hits) == 1
+    return n
+
+
+@pytest.mark.parametrize("key", list(RUNS))
+def test_question_is_external_evidence(key, raw, docs):
+    rec, _ = raw[key]
+    q = _ids(docs[key], "evidence")["evi:question"]
+    assert "produced_by" not in q and q["raw_ref"]["external"] is True
+    assert resolve(rec, q["raw_ref"]["locator"]) == rec["question"]
+    assert q["source"]["candidates"] == ["user", "benchmark"]
+
+
+@pytest.mark.parametrize("key,n", [("620f", 7), ("621", 24), ("sc3", 14)])
+def test_question_delivered_to_root_inputs_only(key, n, raw, docs):
+    rec, _ = raw[key]
+    doc = docs[key]
+    events = _ids(doc, "events")
+    links = [l for l in _delivers(doc) if l["target"] == "evi:question"]
+    established = {e["order"] for e in events.values() if isinstance(e["origin"], str) and e["origin"].startswith("agent:")}
+    assert len(links) == _raw_root_question_hits(rec, established) == n
+    roots = {f"agent:{a['agent_id']}" for a in rec["agents"] if a.get("parent_agent_id") is None}
+    assert {events[l["source"]]["origin"] for l in links} <= roots
+    assert all(l["raw_ref"]["join"] == {"external": "question", "role": "human", "agent_scope": "root"} for l in links)
+
+
+@pytest.mark.parametrize("key", NO_INPUT)
+def test_question_not_delivered_without_inputs(key, docs):
+    assert not [l for l in _delivers(docs[key]) if l["target"] == "evi:question"]
+
+
+def test_question_in_subagent_input_abstains(raw):
+    rec, sha = raw["sc3"]
+    rec = copy.deepcopy(rec)
+    child = next(a["agent_id"] for a in rec["agents"] if a.get("parent_agent_id") is not None)
+    start = next(e for e in rec["events"] if e["type"] == "llm_start" and e["agent_id"] == child and "input_batches" in e)
+    start["input_batches"][0].append({"role": "human", "content": rec["question"]})
+    doc = adapter.adapt(rec, trace_ref="x", trace_sha256=sha)
+    assert verifier.verify(doc, rec, trace_sha256=sha) == []
+    assert any(s["seq"] == [start["seq"]] for s in _skipped(doc, "question_in_non_root_input"))
+    events = _ids(doc, "events")
+    assert not [l for l in _delivers(doc) if l["target"] == "evi:question" and events[l["source"]]["origin"] == f"agent:{child}"]
+
+
+def test_duplicate_question_in_root_input_abstains(raw):
+    rec, sha = raw["621"]
+    rec = copy.deepcopy(rec)
+    start = next(e for e in rec["events"] if e["type"] == "llm_start" and "input_batches" in e)
+    start["input_batches"][0].append({"role": "human", "content": rec["question"]})
+    doc = adapter.adapt(rec, trace_ref="x", trace_sha256=sha)
+    assert any(s["seq"] == [start["seq"]] and s.get("target") == "evi:question" for s in _skipped(doc, "ambiguous_join"))
+    events = _ids(doc, "events")
+    assert not [l for l in _delivers(doc) if l["target"] == "evi:question" and events[l["source"]]["order"] == start["seq"]]
+
+
+# --- increment 2: the verifier rejects forged eviction, question and order metadata ---------
+
+
+def _inc2_tamper_cases():
+    def evict_path(doc):
+        ev = next(e for e in doc["semantic"]["events"] if e["origin"] == "framework:deepagents")
+        ev["raw_ref"]["file_path"] = "/elsewhere"
+
+    def evict_origin(doc):
+        ev = next(e for e in doc["semantic"]["events"] if e["origin"] == "framework:deepagents")
+        ev["origin"] = next(x["id"] for x in doc["semantic"]["entities"] if x["kind"] == "tool")
+
+    def substitute_source(doc):
+        x = next(x for x in doc["semantic"]["evidence"] if x["id"].startswith("evi:evict_sub:"))
+        x["source"] = "framework"
+
+    def question_producer(doc):
+        q = next(x for x in doc["semantic"]["evidence"] if x["id"] == "evi:question")
+        q["produced_by"] = doc["semantic"]["events"][0]["id"]
+
+    def question_to_child(doc):
+        child = next(e for e in doc["semantic"]["events"] if e["origin"] == "agent:sub-1")
+        doc["semantic"]["links"].append({"relation": "delivers", "source": child["id"], "target": "evi:question",
+                                         "raw_ref": {"locator": f"events[seq={child['order']}].input_batches[0][1].content",
+                                                     "join": {}, "sha256": ""}})
+
+    def start_seq(doc):
+        doc["semantic"]["events"][0]["raw_ref"]["start_seq"] += 1
+
+    def drop_overlap(doc):
+        doc["profile_local"]["order"]["overlaps"].pop()
+
+    def order_basis(doc):
+        doc["profile_local"]["order"]["basis"] = "end_seq"
+
+    return {k: v for k, v in locals().items() if callable(v)}
+
+
+@pytest.mark.parametrize("case", sorted(_inc2_tamper_cases()))
+def test_verifier_rejects_forged_increment_2_output(case, raw, docs):
+    rec, sha = raw["sc3"]
+    doc = copy.deepcopy(docs["sc3"])
+    _inc2_tamper_cases()[case](doc)
+    assert verifier.verify(doc, rec, trace_sha256=sha) != []

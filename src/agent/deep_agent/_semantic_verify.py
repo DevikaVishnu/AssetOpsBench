@@ -1,4 +1,4 @@
-"""Independent verifier for structural-adapter output (increment 1).
+"""Independent verifier for structural-adapter output (increments 1 and 2).
 
 ``verify(doc, record, trace_sha256=...)`` re-checks an adapter output against
 the raw instrumented record and returns a list of error strings (empty when the
@@ -13,23 +13,28 @@ the raw record:
   * events: every raw seq exists and belongs to at most one event; model events
     are one ``llm_start``/``llm_end`` pair of the origin agent; tool events are
     the start/end(/commit) of one ``tool_call_id`` for the origin tool;
-    ``order`` is the first raw seq;
+    framework eviction events are one ``file_write``/``tool_result_committed``
+    pair whose eviction checks are recomputed here; ``order`` is the first raw
+    seq and ``raw_ref.start_seq``/``end_seq`` bound the event's raw seqs;
   * evidence: each locator resolves inside its producer's records and its digest
-    and size reproduce;
+    and size reproduce; eviction substitutes are the committed content of a
+    verified eviction; the question is external and equals the record's field;
   * delivers: each link's locator resolves inside the source event's rendered
     input, the value equals the target exactly, and the structural join
-    (``tool_call_id``, or ``delegation_id`` for a child's human message) holds and
-    is unique in that input;
+    (``tool_call_id``, ``delegation_id`` for a child's human message, or a root
+    agent's human message for the question) holds and is unique in that input;
   * accounting: every raw record is in an event or a skipped record entry, and
     the raw irregularities found here (unpaired calls, missing ids, null
     ``offered_tools``, evictions, the question, system prompts) are surfaced;
   * profile_local: ``claims_extracted`` is false, the delivery-telemetry flag
-    matches the record, and no block that would enable negative inferences
-    (``coverage``, ``size_bounds``, ``annotation``) is present.
+    matches the record, ``profile_local.order`` has basis ``first_raw_seq`` and
+    lists exactly the overlapping event pairs, and no block that would enable
+    negative inferences (``coverage``, ``size_bounds``, ``annotation``) is present.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections import Counter, defaultdict
@@ -44,6 +49,30 @@ NEGATIVE_GATES = ("coverage", "size_bounds", "annotation")
 _MSG = re.compile(r"^events\[seq=(\d+)\]\.input_batches\[0\]\[(\d+)\](.*)$")
 _ARG = re.compile(r"^\.tool_calls\[(\d+)\]\.args\.([A-Za-z_]\w*)$")
 _PRODUCED_ARG = re.compile(r"^events\[seq=(\d+)\]\.message\.tool_calls\[(\d+)\]\.args\.([A-Za-z_]\w*)$")
+
+# The eviction code of the deepagents versions read for this verifier (FilesystemMiddleware._process_large_message).
+EVICTION_VERSIONS = {"0.5.3"}
+EVICTION_HEAD = (
+    "Tool result too large, the result of this tool call {tool_call_id} was saved in the filesystem at this "
+    "path: {file_path}\n\nYou can read the result from the filesystem by using the read_file tool, but make "
+    "sure to only read part of the result at a time.\n\nYou can do this by specifying an offset and limit in "
+    "the read_file tool call. For example, to read the first 100 lines, you can use the read_file tool with "
+    "offset=0 and limit=100.\n\nHere is a preview showing the head and tail of the result (lines of the form "
+    "`... [N lines truncated] ...` indicate omitted lines in the middle of the content):\n\n"
+)
+
+
+def _text_blocks(output: Any) -> str | None:
+    if isinstance(output, str):
+        return output
+    if not isinstance(output, list) or not output:
+        return None
+    texts = []
+    for b in output:
+        if not isinstance(b, dict) or b.get("type") != "text" or not isinstance(b.get("text"), str):
+            return None
+        texts.append(b["text"])
+    return "\n".join(texts)
 
 
 def _unresolved(value: Any) -> bool:
@@ -148,6 +177,7 @@ class _Verifier:
     def _events(self) -> None:
         self.event_seqs: dict[str, list[int]] = {}
         self.unresolved_event_starts: set = set()
+        self.evictions: dict[str, dict] = {}  # tool_call_id -> verified eviction event
         orders = [e.get("order") for e in self.events.values()]
         if any(not isinstance(o, int) or isinstance(o, bool) for o in orders):
             self.err("every order must be an integer")
@@ -155,6 +185,11 @@ class _Verifier:
         if len(set(orders)) != len(orders):
             self.err("order values must be unique")
         used: Counter = Counter()
+        for eid, e in self.events.items():
+            ent = self.entities.get(e.get("origin")) if isinstance(e.get("origin"), str) else None
+            if ent is not None and ent.get("kind") == "framework":
+                self._eviction_event(eid, e, ent)
+        evict_commits = {ev["raw_ref"]["seq"][-1] for ev in self.evictions.values()}
         lc_count = Counter((r.get("type"), r.get("lc_run_id")) for r in self.by_seq.values())
         id_count = Counter((r.get("type"), r.get("tool_call_id")) for r in self.by_seq.values())
         for eid, e in self.events.items():
@@ -166,6 +201,8 @@ class _Verifier:
             self.event_seqs[eid] = seqs
             if e["order"] != seqs[0] or seqs[0] != min(seqs):
                 self.err(f"{eid}: order must be the first raw seq")
+            if e["raw_ref"].get("start_seq") != min(seqs) or e["raw_ref"].get("end_seq") != max(seqs):
+                self.err(f"{eid}: start_seq/end_seq must be the minimum and maximum raw seq")
             if _unresolved(e.get("origin")):
                 if self._unresolved_event(eid, e, seqs):
                     self._hashes(eid, e, seqs)
@@ -198,6 +235,8 @@ class _Verifier:
                     self.err(f"{eid}: origin_basis must be an [INF] record of rule {rule}")
             elif origin["kind"] == "tool":
                 tcid = recs[0].get("tool_call_id")
+                commits = [s for s, r in self.by_seq.items() if r.get("type") == "tool_result_committed" and r.get("tool_call_id") == tcid]
+                moved = len(commits) == 1 and commits[0] in evict_commits and types[2:] == []
                 ok = (
                     types[:2] == ["tool_start", "tool_end"]
                     and types[2:] in ([], ["tool_result_committed"])
@@ -206,16 +245,74 @@ class _Verifier:
                     and id_count[("tool_start", tcid)] == 1
                     and id_count[("tool_end", tcid)] == 1
                     and id_count[("tool_result_committed", tcid)] <= 1
-                    and len(seqs) == 2 + id_count[("tool_result_committed", tcid)]
+                    and (len(seqs) == 2 + id_count[("tool_result_committed", tcid)] or moved)
                     and e["raw_ref"].get("tool_call_id") == tcid
                 )
                 if not ok:
                     self.err(f"{eid}: not the start/end(/commit) of one tool_call_id for its origin tool")
+                elif tcid in self.evictions and recs[1]["seq"] >= self.evictions[tcid]["raw_ref"]["seq"][0]:
+                    self.err(f"{eid}: tool_end must precede the eviction's file_write")
+            elif origin["kind"] == "framework":
+                pass  # checked in _eviction_event
             else:
-                self.err(f"{eid}: increment 1 emits only agent- and tool-origin events")
+                self.err(f"{eid}: only agent-, tool- and framework-eviction events are emitted")
         for s, n in used.items():
             if n > 1:
                 self.err(f"raw seq {s} belongs to more than one event")
+
+    def _eviction_event(self, eid: str, e: dict, ent: dict) -> None:
+        """Recompute every eviction check from raw records (adapter rule eviction_event)."""
+        ref = e.get("raw_ref") or {}
+        seqs = ref.get("seq")
+        if not isinstance(seqs, list) or len(seqs) != 2 or any(s not in self.by_seq for s in seqs):
+            self.err(f"{eid}: eviction raw_ref.seq must be [file_write, tool_result_committed]")
+            return
+        w, c = self.by_seq[seqs[0]], self.by_seq[seqs[1]]
+        tcid = ref.get("tool_call_id")
+        version = (self.rec.get("versions") or {}).get("deepagents")
+        ends = [r for r in self.by_seq.values() if r.get("type") == "tool_end" and r.get("tool_call_id") == tcid]
+        starts = [r for r in self.by_seq.values() if r.get("type") == "tool_start" and r.get("tool_call_id") == tcid]
+        writes = [r for r in self.by_seq.values() if r.get("type") == "file_write" and r.get("tool_call_id") == tcid]
+        path = w.get("path")
+        same_path = [r for r in self.by_seq.values() if r.get("type") == "file_write" and r.get("path") == path]
+        content = c.get("content")
+        problems = []
+        if ent.get("id") != "framework:deepagents" or version not in EVICTION_VERSIONS:
+            problems.append("framework or version")
+        if w.get("type") != "file_write" or c.get("type") != "tool_result_committed" or tcid is None:
+            problems.append("record types")
+        if c.get("tool_call_id") != tcid or c.get("differs_from_raw") is not True or len(writes) != 1 or len(ends) != 1 or len(starts) != 1:
+            problems.append("joins")
+        if w.get("attribution") != "tool_call" or w.get("error") is not None or not isinstance(path, str) \
+                or w.get("result_path") != path or len(same_path) != 1:
+            problems.append("file_write")
+        elif path.split("/")[-1] != tcid.replace(".", "_").replace("/", "_").replace("\\", "_"):
+            problems.append("file name")
+        if not problems:
+            end = ends[0]
+            agent = starts[0].get("agent_id")
+            text = _text_blocks(end.get("output"))
+            head = EVICTION_HEAD.format(tool_call_id=tcid, file_path=path)
+            if not end["seq"] < w["seq"] < c["seq"]:
+                problems.append("seq order")
+            if w.get("agent_id") != agent or c.get("agent_id") != agent:
+                problems.append("agent_id")
+            if text is None or hashlib.sha256(text.encode("utf-8")).hexdigest() != w.get("sha256") or len(text) != w.get("size"):
+                problems.append("file digest")
+            if not isinstance(content, str) or digest(content) != c.get("sha256") or not content.startswith(head) \
+                    or not content.endswith("\n") or len(content) <= len(head) + 1:
+                problems.append("template")
+        basis = ref.get("origin_basis") or {}
+        if basis.get("label") != "[INF]" or basis.get("rule") != "eviction_event":
+            problems.append("origin_basis")
+        if ref.get("file_path") != path:
+            problems.append("file_path provenance")
+        if problems:
+            self.err(f"{eid}: eviction event not established from the raw record ({', '.join(problems)})")
+            return
+        if tcid in self.evictions:
+            self.err(f"{eid}: more than one eviction event for one tool_call_id")
+        self.evictions[tcid] = e
 
     def _origin_established(self) -> dict:
         """llm_start seq -> whether an agent origin is established, recomputed from raw records only."""
@@ -356,8 +453,13 @@ class _Verifier:
 
     def _evidence(self) -> None:
         self.values: dict[str, Any] = {}
+        self.question_ids: set[str] = set()
+        self.substitutes: dict[str, str] = {}  # evidence id -> tool_call_id
         for xid, x in self.evidence.items():
             ref = x.get("raw_ref") or {}
+            if "produced_by" not in x:
+                self._external(xid, x, ref)
+                continue
             prod = self.events.get(x.get("produced_by"))
             if prod is None:
                 self.err(f"{xid}: produced_by is not an event")
@@ -379,7 +481,24 @@ class _Verifier:
             else:
                 kind = (self.entities.get(prod.get("origin")) or {}).get("kind")
             raw = self.by_seq[seq]
-            if kind == "tool":
+            if kind == "framework":
+                tcid = prod["raw_ref"].get("tool_call_id")
+                src = x.get("source")
+                ok = (
+                    self.evictions.get(tcid) is prod
+                    and raw.get("type") == "tool_result_committed"
+                    and seq == prod["raw_ref"]["seq"][-1]
+                    and ref["locator"] == f"events[seq={seq}].content"
+                    and ref.get("tool_call_id") == tcid
+                    and _unresolved(src)
+                    and src.get("candidates") == ["framework", "tool"]
+                    and f"semantic.evidence[{xid}].source" in self.unresolved_paths
+                )
+                if ok:
+                    if tcid in self.substitutes.values():
+                        self.err(f"{xid}: more than one substitute for one eviction")
+                    self.substitutes[xid] = tcid
+            elif kind == "tool":
                 if raw.get("tool_call_id") in self._delegation_ids():
                     self.err(f"{xid}: result of a delegating tool call is not emitted in increment 1 (0.3 §4.4)")
                 ok = (
@@ -407,6 +526,28 @@ class _Verifier:
                 ok = False
             if not ok:
                 self.err(f"{xid}: source, locator or tool_call_id inconsistent with its producer")
+
+    def _external(self, xid: str, x: dict, ref: dict) -> None:
+        """The only external item emitted is the record's question."""
+        q = self.rec.get("question")
+        src = x.get("source")
+        ok = (
+            q is not None
+            and ref.get("external") is True
+            and ref.get("locator") == "question"
+            and "seq" not in ref
+            and digest(q) == ref.get("sha256")
+            and size(q) == ref.get("size")
+            and _unresolved(src)
+            and src.get("candidates") == ["user", "benchmark"]
+            and f"semantic.evidence[{xid}].source" in self.unresolved_paths
+            and not self.question_ids
+        )
+        if not ok:
+            self.err(f"{xid}: external evidence is not the record's question with an unresolved user/benchmark source")
+            return
+        self.question_ids.add(xid)
+        self.values[xid] = q
 
     # --- links ---------------------------------------------------------------------
 
@@ -458,7 +599,8 @@ class _Verifier:
         role = msg.get("role")
         if role == "tool":
             same = [x for x in batch if isinstance(x, dict) and x.get("role") == "tool" and x.get("tool_call_id") == tcid]
-            ok = rest == ".content" and tgt.get("source") == "tool" and msg.get("tool_call_id") == tcid and len(same) == 1
+            kind_ok = tgt.get("source") == "tool" or self.substitutes.get(tgt["id"]) == tcid
+            ok = rest == ".content" and kind_ok and msg.get("tool_call_id") == tcid and len(same) == 1
         elif role == "ai":
             a = _ARG.match(rest)
             entries = [tc for x in batch if isinstance(x, dict) and x.get("role") == "ai" for tc in x.get("tool_calls") or [] if tc.get("id") == tcid]
@@ -473,13 +615,21 @@ class _Verifier:
             aid = self._agent_of(origin["id"])
             agent = next((a for a in self.rec.get("agents", []) if a.get("agent_id") == aid), {})
             equal = [x for x in batch if isinstance(x, dict) and x.get("role") == "human" and _canon(x.get("content")) == _canon(expected)]
-            ok = (
-                rest == ".content"
-                and tgt.get("source") == "agent"
-                and agent.get("delegation_id") is not None
-                and agent.get("delegation_id") == tcid
-                and len(equal) == 1
-            )
+            if tgt["id"] in self.question_ids:
+                ok = (
+                    rest == ".content"
+                    and agent.get("parent_agent_id") is None
+                    and agent.get("delegation_id") is None
+                    and len(equal) == 1
+                )
+            else:
+                ok = (
+                    rest == ".content"
+                    and tgt.get("source") == "agent"
+                    and agent.get("delegation_id") is not None
+                    and agent.get("delegation_id") == tcid
+                    and len(equal) == 1
+                )
         else:
             ok = False
         if not ok:
@@ -520,6 +670,13 @@ class _Verifier:
             self.err("delivers links in a run without rendered inputs")
         if not (ad.get("order") or {}).get("caveat"):
             self.err("the order caveat is missing")
+        order = pl.get("order") or {}
+        spans = sorted((min(s), max(s), eid) for eid, s in self.event_seqs.items())
+        pairs = [[a, b] for i, (_, hi, a) in enumerate(spans) for (lo2, _, b) in spans[i + 1:] if lo2 <= hi]
+        if order.get("basis") != "first_raw_seq" or not order.get("caveat"):
+            self.err("profile_local.order must have basis first_raw_seq and a caveat")
+        if sorted(map(tuple, order.get("overlaps") or [])) != sorted(map(tuple, pairs)):
+            self.err("profile_local.order.overlaps does not list exactly the overlapping event pairs")
 
     def _accounting(self) -> None:
         skipped = self.adapter.get("skipped") or []
@@ -539,12 +696,14 @@ class _Verifier:
         for s in sorted(self._unresolved_seqs() - self.unresolved_event_starts):
             self.err(f"llm_start {s}: paired call with unestablished agent origin is not preserved as an event")
         evicted = {s for e in by_kind["eviction_substitute"] for s in e.get("seq", [])}
+        represented = {ev["raw_ref"]["seq"][-1] for ev in self.evictions.values()}
         for s, r in self.by_seq.items():
-            if r.get("type") == "tool_result_committed" and r.get("differs_from_raw") is True and s not in evicted:
-                self.err(f"eviction at seq {s} is not surfaced")
+            if r.get("type") == "tool_result_committed" and r.get("differs_from_raw") is True:
+                if (s in evicted) == (s in represented):
+                    self.err(f"eviction at seq {s} must be either an eviction event or a skipped item, exactly once")
         q = self.rec.get("question")
-        if q is not None and not any(e.get("sha256") == digest(q) for e in by_kind["question"]):
-            self.err("the question is not surfaced as a skipped item")
+        if q is not None and not self.question_ids:
+            self.err("the question is not emitted as external evidence")
         prompts = {(e.get("agent_id"), e.get("sha256")) for e in by_kind["system_prompt"]}
         for eid, seqs in self.event_seqs.items():
             start = self.by_seq[seqs[0]]
